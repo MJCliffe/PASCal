@@ -1,0 +1,105 @@
+body { font-family: "Helvetica", Arial, sansserif;}
+
+h1 {
+  text-align: center;
+}
+
+.image {
+  display: block;
+  margin-top: 30px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 21%;
+}
+
+.subtitle {
+  font-weight: bold;
+}
+
+.option{
+  padding: 0.5em;
+}
+
+.graph {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+}
+
+.calbutton {
+  background-color: #0571B0;
+  color: white;
+  font-size: 18px;
+  padding: 10px 28px;
+  border-radius: 8px;
+}
+
+.sample {
+  text-align: right;  
+  background-color: red;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  background-color: #B3EEF7;
+  text-align: left;
+  border-radius: 1em;
+  padding: 1em;
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip{
+  display: inline;
+}
+.tooltip:hover {
+  background-color: yellow;
+}
+
+.tooltip:hover .tooltiptext {
+visibility: visible;
+}
+
+
+
+.table_header {
+  text-align: left;
+  padding: 4px;
+}
+
+.table_direction{
+  text-align: center;
+  padding: 4px;
+  border-bottom: 1px solid;
+}
+
+.table_blank{
+  border-bottom: 0;
+}
+
+table {
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;  
+}
+
+th {
+  padding: 4px;
+  border-bottom: 1px solid;
+  border-collapse: collapse;
+}
+
+td {
+  padding: 4px;
+}
+table {
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}

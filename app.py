@@ -2,8 +2,21 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import plotly
 import plotly.express as px
+import plotly.graph_objs as go
+import plotly.subplots
+from plotly.subplots import make_subplots
+
+import numpy as np
 import json
 import os
+
+import scipy
+from scipy import stats
+from scipy import linalg as la
+from scipy.optimize import curve_fit
+
+from PASCal import *
+
 
 app = Flask(__name__)
 
@@ -18,38 +31,695 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
-@app.route('/hello', methods=['POST'])
-def hello():
-   name = request.form.get('name')
 
-   if name:
-       print('Request for hello page received with name=%s' % name)
-       return render_template('hello.html', name = name)
-   else:
-       print('Request for hello page received with no name or blank name -- redirecting')
-       return redirect(url_for('index'))
+@app.route('/output',methods=['POST'])
+def output():
+    data = request.form.get('data')
+    DataType = request.form.get('DataType') # strings of 'Temperature' or 'Pressure' or 'Electrochemical'
+    StrainType = request.form.get('StrainType') #true or false (Eulerian or Lagrangian) XXXX no
+    AdvancedOption = request.form.get('AdvancedOption') #true or false (Finite or infinitesimal)
+    if DataType == 'Pressure':
+        UsePc = request.form.get('UsePc') # if critical pressure is used (string, "true")
+        if UsePc == "True":
+            InpPc = float(request.form.get('PcVal')) #critical pressure value            
+    if DataType == 'Electrochemical':
+        DegPolyCap = int(request.form.get('DegPolyCap')) # degree(s) of Chebyshev polynomial for fitting the cumulative capacity and the strain data
+        DegPolyVol = int(request.form.get('DegPolyVol')) # degree(s) of Chebyshev polynomial for fitting the cumulative capacity and the unit-cell volume        
+    print('Request for output page received')
 
-@app.route('/test')
-def test():
-    print('Request for test page received')
-    long_df = px.data.medals_long()
-    fig = px.bar(long_df, x="nation", y="count", color="medal", title="Long-Form Input")
-    #fig = px.bar(df, x='Fruit', y='Amount', color='City', 
-    # barmode='group')
-    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-    return render_template('test.html', graphJSON=graphJSON) 
-   #return render_template('test.html', name = 'MJC_test_page')
+####
+##This section converts the raw string into a series of numpy arrays
+    TPx = [] #Temperature or pressure or electrochemical data (K, TPa^-1, mAhg-1)
+    TPxError = [] #error in input data (K, TPa^-1, mAhg-1)
+    Latt = []  #lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
+    for line in data.splitlines():
+        line = line.strip()
+        if not line.startswith('#'):
+            datum = np.fromstring(line,sep=' ')
+            if(np.shape(datum)[0] == 0):
+                continue
+            if(np.shape(datum)[0] != 8):
+                print('wrong number of entries in line',datum)
+                continue
+            TPx.append(datum[0])
+            TPxError.append(datum[1])
+            Latt.append(datum[2:])
 
-#    # Generate the figure **without using pyplot**.
- #   fig = Figure()
- #   ax = fig.subplots()
- #   ax.plot([1, 2])
- #   # Save it to a temporary buffer.
- #   buf = BytesIO()
- #   fig.savefig(buf, format="png")
- #   # Embed the result in the html output.
- #   data = base64.b64encode(buf.getbuffer()).decode("ascii")
- #   return f"<img src='data:image/png;base64,{data}'/>"
+    TPx = np.array(TPx)
+    TPxError = np.array(TPxError)
+    Latt = np.stack(Latt)
+
+    if StrainType == "True": EulerianStrain = True
+    elif StrainType == "False": EulerianStrain = False
+
+    if AdvancedOption == "True": FiniteStrain = True
+    elif AdvancedOption == "False": FiniteStrain = False
+
+####
+## Strain calculation
+    CalStrain, CalVectors = DiaLinearStrain(Latt, FiniteStrain, EulerianStrain) # CalStrain: strain eigenvalues; CalVectors: strain eigenvectors in orthonormal axes
+    XCal = np.zeros((3, TPx.shape[0])) # array for fitted strain
+    u = int(np.ceil(len(TPx)/2)) # median 
+    CalTrans = PrePRAXnCRAX(Latt[u], CalVectors[:,:,u]) # transformation matrix variable used to calculate both the principal axes and the crystallographic axes
+    Prax = ProjOfXnOnUnitCell(CalTrans) # Eigenvector projected on crystallographic axes
+    CalCrax = CRAX(CalTrans) # Compute crystallogrphic axes in crystallographic coordinate XXX
+
+####
+## Linear fitting of volume and lattice parameters
+    Vol = CellVol(Latt) #volumes in (Angstrom^3)
+    VolLinFit = scipy.stats.linregress(TPx, Vol) # check errors
+    VolGrad =VolLinFit.slope
+    VolYInt = VolLinFit.intercept
+    VolLin = TPx*VolGrad + VolYInt
+    
+    if DataType != 'Electrochemical':
+        VolError = np.ones(Latt.shape[0])        
+        CalAlpha,CalYInt,CalAlphaErr = StrainFit(TPx, CalStrain, TPxError, 3) # why is this here twice?!
+        #CalVolAlpha, CalVolYInt, CalVolAlphaErr = StrainFit(Vol, TPx, VolError, 1) # whatever this is wrong.
+
+ ## Plotting
+    Colour = ['Red', 'Green', 'Blue'] #standard axes colours
+    StrainLabel = ["\u03B5<sub>1</sub>", "\u03B5<sub>2</sub>", "\u03B5<sub>3</sub>"]
+    AxesLabel = ["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>"]
+    StrainFitLabel = ["\u03B5<sub>1,calc</sub>", "\u03B5<sub>2,calc</sub>", "\u03B5<sub>3,calc</sub>"]
+    PlotWidth=500
+    PlotHeight=500
+    PlotMargin =dict(t=50, b=50, r=50, l=50) 
+
+## For each data type plot and do some additional fitting
+    if DataType == 'Temperature':
+        ### headings for tables
+        TPxLabel = "T(K)"
+        CoeffThermHeadings = ["Axes", "\u03C3 (MK\u207b\u00B9)", "\u03C3\u03C3 (MK\N{SUPERSCRIPT ONE})", "a", "b", "c"]
+        VolTempHeadings = [TPxLabel, "V (A^3)", "VLin (A^3)"]
+    
+        ### unit conversions        
+        VolThermCom =VolGrad/Vol[0]*1e6
+        VolThermComErr = VolLinFit.stderr/Vol[0]*1e6
+
+        #VolThermCom =VolGrad/Vol[0]*1e6 #convert to coefficient of thermal expansion (MK^-1)
+
+        #VolThermComErr = (CalVolAlphaErr/Vol[0])*1e6 #XXX    
+
+        #print( VolGrad, VolYInt, VolLinFit.stderr)
+        #print(CalVolAlpha, CalVolYInt, CalVolAlphaErr)
+
+        PrinComp = CalAlpha*1e6
+
+        ### Strain Plot
+        FigStrain = go.Figure()
+        for i in range(3):                                        
+            ### Temperature (K) vs strain (percentage) graph along each axis
+            FigStrain.add_trace(go.Scatter(x=TPx, y=CalStrain[i]*1e2, name=StrainLabel[i],  mode='markers', marker_symbol='circle-open', 
+                marker=dict(color=Colour[i]))) #strain data
+            FigStrain.add_trace(go.Scatter(x=TPx, y=(CalAlpha[i]*TPx+CalYInt[i])*1e2, name=StrainFitLabel[i], mode='lines',
+                line=dict(color=Colour[i]))) #strain linear fit
+        
+        FigStrain.update_xaxes(title_text="Temperature (K)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.update_yaxes(title_text="Relative change in <br> principal axis length (%)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.add_hline(y=0, row=1, col=1) #the horizontal line along the x axis
+        
+        FigStrain.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        ### Volume Plot
+        FigVolume = go.Figure()
+        FigVolume.add_trace(go.Scatter(x=TPx, y=Vol, name="V", mode='markers', marker_symbol='circle-open', 
+        marker=dict(color='Black')))
+        FigVolume.add_trace(go.Scatter(x=TPx, y=VolLin, name="V<sub>lin</sub>", mode='lines',
+        line=dict(color='Black'))) #linear fit for volume
+        FigVolume.update_xaxes(title_text="Temperature (K)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigVolume.update_yaxes(title_text="V (\u212B<sup>3</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')        
+        FigVolume.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        StrainJSON = json.dumps(FigStrain, cls=plotly.utils.PlotlyJSONEncoder)
+        VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
+
+    if DataType == 'Pressure':
+
+        ###Headings for tables
+        TPxLabel = "P(GPa)"
+        KEmpHeadings = ["Axes", "K(TPa-1)", "\u03C3K(TPa-1)", "a", "b", "c", "\u03B5", "\u03BB", "Pc", "\u03BD"]
+        KLabel = ["K<sub>1</sub>", "K<sub>2</sub>", "K<sub>3</sub>"]
+        BMCoeffHeadings = ["", "B0 (GPa)", "\u03C3B0(GPa)", "V0(A^3)", "\u03C3V0(A^3)", "B'", "\u03C3B'", "Pc(GPa)"]
+        BMOrder = ["2nd", "3rd"]
+        KHeadings = ["P", "K1", "K2", "K3", "\u03C3K1", "\u03C3K2", "\u03C3K3"]
+        VolPressHeadings = [TPxLabel, "PLin", "PCalc,2nd", "P3rd", "V (A^3)"]
+
+        if UsePc == "True": ## if a critical pressure is USED
+            BMOrder.append("3rd with Pc")
+            VolPressHeadings = [TPxLabel, "PLin", "PCalc,2nd", "P3rd", "P3rd+Pc", "V (A^3)"]
+
+        ### Unit conversion?
+        CalEmPopt = np.zeros((3,4)) # optimised empirical parameters
+        CalEmPcov = np.zeros((3,4,4)) # the estimated covariance of CalEmPopt
+        K = np.zeros((3, Latt.shape[0])) #compressibilities TPa-1
+        KErr = np.zeros((3, Latt.shape[0])) # errors in K TPa-1
+
+        VolThermCom =VolGrad/Vol[0]*1e3
+        VolThermComErr = VolLinFit.stderr/Vol[0]*1e3
+
+
+
+        ### Bounds for the empirical fit
+        EmpBounds = np.array([[-np.inf, -np.inf, -np.inf, -np.inf], [np.inf, min(TPx), np.inf, np.inf]])
+
+        for i in range(3):           
+                        
+            CalEmPopt[i], CalEmPcov[i]= curve_fit(EmpEq, TPx, CalStrain[i], p0=np.array([CalYInt[i], min(TPx), CalAlpha[i], 0.5]),
+            bounds=EmpBounds, maxfev=5000)
+
+            CalEpsilon0 = np.array([CalEmPopt[0][0], CalEmPopt[1][0], CalEmPopt[2][0]])
+            CalLambda = np.array([CalEmPopt[0][2], CalEmPopt[1][2], CalEmPopt[2][2]])
+            CalPc = np.array([CalEmPopt[0][1], CalEmPopt[1][1], CalEmPopt[2][1]])
+            CalNu = np.array([CalEmPopt[0][3], CalEmPopt[1][3], CalEmPopt[2][3]])
+
+            XCal[i][:] = EmpEq(TPx[:], CalEmPopt[i][0], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])*1e2 # strain %
+            K[i][:] = Comp(CalEmPopt[i][2], CalEmPopt[i][3], TPx[:], CalEmPopt[i][1])*1e3 # compressibilities (TPa^-1)
+            KErr[i][:] = CompErr(CalEmPcov[i], CalEmPopt[i][1], CalEmPopt[i][3], CalEmPopt[i][2], TPx)*1e3 # errors in compressibilities (TPa^-1)
+        
+        PrinComp = np.array([K[0][u], K[1][u], K[2][u]]) # median compressibilities (TPa^-1) for indicatrix plot
+
+        ### Volume fits
+        PoptSecBM, PcovSecBM = curve_fit(SecBM, Vol, TPx, p0=np.array([Vol[0], -Vol[0]*(TPx[-1]-TPx[0])/(Vol[-1]-Vol[0])]), maxfev=5000) # second-order Birch-Murnaghan fit
+        SigV0SecBM, SigB0SecBM = np.sqrt(np.diag(PcovSecBM))
+
+        IntBprime = (-Vol[0]*(TPx[-1]-TPx[0])/(Vol[-1]-Vol[0]))/(TPx[-1]-TPx[0]) # B prime=dB/dp  initial guess for the third-order Birch-Murnaghan fitting
+        
+        PoptThirdBM, PcovThirdBM = curve_fit(ThirdBM, Vol, TPx, p0=np.array([Vol[0], PoptSecBM[1], IntBprime]), maxfev=5000) # third-order Birch-Murnaghan fit
+        SigV0ThirdBM, SigB0ThirdBM, SigBprimeThirdBM = np.sqrt(np.diag(PcovThirdBM))
+
+        if UsePc == "True": ## if a critical pressure is USED
+            PoptThirdBMPc, PcovThirdBMPc = curve_fit(WrapperThirdBMPc(InpPc), Vol, TPx, 
+            p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]), maxfev=5000) # trhid order BM fit +Pc
+            SigV0ThirdBMPc, SigB0ThirdBMPc, SigBprimeThirdBMPc = np.sqrt(np.diag(PcovThirdBMPc))
+
+        ### Birch-Murnaghan coefficients
+        B0 = np.array([PoptSecBM[1], PoptThirdBM[1]]) #reference bulk modulus (GPa)
+        SigB0 = np.array([SigB0SecBM, SigB0ThirdBM])  # standard error in reference bulk modulus (GPa)
+        V0 = np.array([PoptSecBM[0], PoptThirdBM[0]]) #the reference volume V0 (Angstrom^3)
+        SigV0 = np.array([SigV0SecBM, SigV0ThirdBM]) #pressure derivative of the bulk modulus (dimensionless)
+        BPrime = np.array([4, PoptThirdBM[2]]) #pressure derivative of the bulk modulus (dimensionless)
+        SigBPrime = ['n/a', round(SigBprimeThirdBM, 4)] #  the standard error in pressure derivative of the bulk modulus (dimensionless) - no applicable for 2nd order BM
+        PcCoef = np.array([0, 0])
+        if UsePc == "True": ## add in critical pressure values
+            B0 = np.concatenate([B0, [PoptThirdBMPc[1]]])
+            SigB0 = np.concatenate([SigB0, [SigB0ThirdBMPc]])
+            V0 = np.concatenate([V0, [PoptThirdBMPc[0]]])
+            SigV0 = np.concatenate([SigV0, [SigV0ThirdBMPc]])
+            BPrime = np.concatenate([BPrime, [PoptThirdBMPc[2]]])
+            SigBPrime.append(round(SigBprimeThirdBMPc, 4))
+            PcCoef = np.concatenate([PcCoef, [InpPc]])
+
+        ### Compute the pressure from all fits        
+        CalPress = np.zeros((3, Latt.shape[0])) 
+        CalPress[0][:] = (Vol-VolYInt)/VolGrad #not the same as PASCal?
+        CalPress[1][:] = SecBM(Vol[:], PoptSecBM[0], PoptSecBM[1])
+        CalPress[2][:] = ThirdBM(Vol[:], PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2])
+        if UsePc == "True": ## if a critical pressure is USED
+            PThirdBMPc = ThirdBMPc(Vol[:], PoptThirdBMPc[0], PoptThirdBMPc[1], PoptThirdBMPc[2], InpPc)
+            CalPress = np.vstack((CalPress, PThirdBMPc))
+
+        ### Strain Plot
+        FigStrain = go.Figure()
+        for i in range(3):
+            FigStrain.add_trace(go.Scatter(name=StrainLabel[i], x=TPx, y=CalStrain[i]*1e2,mode='markers', marker_symbol='circle-open',
+            marker=dict(color=Colour[i]))) # strain
+            FigStrain.add_trace(go.Scatter(name=StrainFitLabel[i], x=np.linspace(TPx[0], TPx[-1], num=1000), y=EmpEq(np.linspace(TPx[0], TPx[-1], num=1000), *CalEmPopt[i])*1e2,
+            mode='lines', line=dict(color=Colour[i]))) # fit strain
+        
+        FigStrain.update_xaxes(title_text="Pressure (GPa)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.update_yaxes(title_text="Relative change in <br> principal axis length (%)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.add_hline(y=0) #the horizontal line along the x axis
+        
+        FigStrain.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+   
+        ### Compressibility Plot
+        FigDeriv= go.Figure()
+        for i in range(3):
+            K_low = K[i]-KErr[i]
+            K_high = K[i]+KErr[i]              
+
+            FigDeriv.add_trace(go.Scatter(name=KLabel[i], x=TPx, y=K[i], mode='markers', marker_symbol='circle-open',
+                marker=dict(color=Colour[i])))
+
+            FigDeriv.add_trace(go.Scatter(x=np.concatenate([TPx,TPx[::-1]]), y=np.concatenate([K_high,K_low[::-1]]),fill='toself',
+                fillcolor=Colour[i],
+                line=dict(color=Colour[i]),
+                name=KLabel[i],hoverinfo="skip",opacity=0.25))
+
+            FigDeriv.add_trace(go.Scatter(name=KLabel[i], x=np.linspace(TPx[0], TPx[-1], num=200), y=np.array(Comp(CalEmPopt[i][2], CalEmPopt[i][3],
+            np.linspace(TPx[0], TPx[-1], num=200), CalEmPopt[i][1]))*1e3, 
+            mode='lines', line=dict(color=Colour[i])))
+
+        FigDeriv.update_xaxes(title_text="Pressure (GPa)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigDeriv.update_yaxes(title_text="Compressibility (TPa <sup>–1</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigDeriv.add_hline(y=0) #the horizontal line along the x axis
+        
+        FigDeriv.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        ### Volume plot
+        FigVolume= go.Figure()
+
+        FigVolume.add_trace(go.Scatter(name = 'V', x=TPx, y=Vol, mode='markers', marker_symbol='circle-open', 
+        marker=dict(color='Black')),) # data
+
+        FigVolume.add_trace(go.Scatter(name="V<sub>2nd BM<sub>", x=SecBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptSecBM), y=np.linspace(Vol[0], Vol[-1], num=100),
+         mode='lines', line=dict(color='Red'))) # BM 2nd
+
+        FigVolume.add_trace(go.Scatter(name="V<sub>3rd BM<sub>", x=ThirdBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBM), y=np.linspace(Vol[0], Vol[-1], num=100),
+        mode='lines', line=dict(color='Blue'))) #BM 3rd
+
+        if UsePc == "True": ## add in critical pressure values            
+            FigVolume.add_trace(go.Scatter(name="V<sub>3rd BM with P<sub>c</sub><sub>", x=ThirdBMPc(np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBMPc, InpPc),
+                y=np.linspace(Vol[0], Vol[-1], num=100), mode='lines', legendrank=16, line=dict(color='Green'))) # BM3rd + PC
+
+        FigVolume.update_xaxes(title_text="Pressure (GPa)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigVolume.update_yaxes(title_text="V (\u212B<sup>3</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+
+        FigVolume.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        StrainJSON = json.dumps(FigStrain, cls=plotly.utils.PlotlyJSONEncoder)
+        DerivJSON = json.dumps(FigDeriv, cls=plotly.utils.PlotlyJSONEncoder)
+        VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
+
+    if DataType == 'Electrochemical':
+        ### 
+        TPxLabel = "q(mAhg^-1)"
+        QPrimeLabel = ["q'<sub>1</sub>", "q'<sub>2</sub>", "q'<sub>3</sub>"]
+        QPrimeHeadings = ["Axes", "q'(%/KAhg^-1)", "a", "b", "c"]
+        VolElecHeadings = [TPxLabel, "V(A^3)", "VCheb(A^3)"]
+        DerHeadings = [TPxLabel, "q1'", "q2'", "q3'"]        
+
+        ### Chebyshev polynomial fits of strain
+        CoefStrainList = [] # Chebyshev coefficients of all degrees of Chebyshev polynomials for each axis
+        ResStrain = np.zeros((3, DegPolyCap)) # Residuals of all degrees of Chebyshev polynomials for each axis
+        ChebObj = [] # Chebyshev objects
+        ChebStrainDeg = np.zeros(DegPolyCap) # degrees of Chebyshev polynomials
+        Deriv = np.zeros((3, Latt.shape[0])) # derivatives of the Chebyshev polymoials
+        ChebDer = np.zeros((3, DegPolyCap)) # Chebyshev series coefficients of the derivative
+
+        for i in range (0, 3): #for every principal axis
+            CoefAxis = [] # Chebyshev coefficients for each principal axis
+            for j in range(1, DegPolyCap+1): #for every degree                
+                ChebStrainDeg[j-1] = int(j) # the degrees of Chebyshev polynomials for plotting the graph                
+                coef, FullList = np.polynomial.chebyshev.chebfit(TPx, CalStrain[i], j, full=True) #fitting                
+                CoefAxis.append(coef)  #Chebyshev coefficients ordered from low to high for each degree     
+                ResStrain[i][j-1] = FullList[0][0] #include residual
+            
+            CoefStrainList.append(CoefAxis) # append Chebyshev coefficients for each axis
+            
+            CoefStrainOp = CoefStrainList[i][np.argmin(ResStrain[i])] # Chebyshev coefficients that give the smallest residual for each axis
+            XCal[i] = np.polynomial.chebyshev.chebval(TPx, CoefStrainOp) # Chebyshev coefficients that give the smallest residual for each axis
+            ChebObj.append(np.polynomial.chebyshev.Chebyshev(CoefStrainOp)) # store Chebyshev objects for each axis            
+            ChebDer[i] = np.polynomial.chebyshev.chebder(CoefStrainOp, m=1, scl=1, axis=0) # Chebyshev series coefficients of the derivative
+            Deriv[i][:] = np.polynomial.chebyshev.chebval(TPx, ChebDer[i])*1e5 # derivative at datapoints, now in muAhg^-1?
+                    
+        PrinComp = np.array([Deriv[0][u], Deriv[1][u], Deriv[2][u]])# median derivatives of the Chebyshev polynomial (1/muAhg^-1) for the indicatrix plot
+
+     ### Chebyshev polynomial volume fit
+        CoefVolList = [] # a list to store Chebyshev coefficients of all degrees of Chebyshev polynomials
+        ResVol = np.zeros(DegPolyVol) # an array to store residuals of all degrees of Chebyshev polynomials
+        ChebVolDeg = np.arange(1,DegPolyVol+1) 
+        
+
+        for i in ChebVolDeg: # for every degree(s) of Chebyshev polynomials            
+            coef, FullList = np.polynomial.chebyshev.chebfit(TPx, Vol, i, full=True) #fit
+            ResVol[i-1] = FullList[0][0] #update residual        
+            CoefVolList.append(coef)     # append Chebyshev coefficients for each degree of Chebyshev polynomials
+        
+        CoefVolOp = CoefVolList[np.argmin(ResVol)] #best cheb fit        
+        VolCheb = np.polynomial.chebyshev.chebval(TPx, CoefVolOp) #calc volume from best Cheb fit
+        ChebVolObj = np.polynomial.chebyshev.Chebyshev(CoefVolOp)
+        VolDer = np.polynomial.chebyshev.chebder(CoefVolOp, m=1, scl=1, axis=0)
+        VolThermCom = np.polynomial.chebyshev.chebval(TPx, VolDer)[u]*1e5
+        print(VolThermCom)
+        ### Strain Plot
+        FigStrain = go.Figure()
+        for i in range(3): #adapt to plot every range
+            FigStrain.add_trace(go.Scatter(x=TPx, y=CalStrain[i]*1e2, name=StrainLabel[i], mode='markers', marker_symbol='circle-open',
+                marker=dict(color=Colour[i])))
+            FigStrain.add_trace(go.Scatter(x=TPx, y=ChebObj[i](TPx)*1e2, name=StrainFitLabel[i], mode='lines', 
+                    line=dict(color=Colour[i])))            
+
+        FigStrain.update_xaxes(title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.update_yaxes(title_text="Relative change in <br> principal axis length (%)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigStrain.add_hline(y=0) #the horizontal line along the x axis
+        
+        FigStrain.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        ### Deriv plot
+        FigDeriv = go.Figure()        
+        for i in range(3): #adapt to plot every range
+            FigDeriv.add_trace(go.Scatter(x=TPx, y=Deriv[i], name=QPrimeLabel[i], legendgroup = '5', mode='markers', marker_symbol='circle-open',
+            marker=dict(color=Colour[i])))
+            FigDeriv.add_trace(go.Scatter(x=np.linspace(TPx[0], TPx[-1], num=300),
+            y=np.polynomial.chebyshev.chebval(np.linspace(TPx[0], TPx[-1], num=300), ChebDer[i])*1e6,
+            name=QPrimeLabel[i], mode='lines', line=dict(color=Colour[i])))   
+
+        FigDeriv.add_hline(y=0)
+        FigDeriv.update_xaxes(title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigDeriv.update_yaxes(title_text="Charge-derivative of the electrochemical strain' (1/[muAhg<sup>-1</sup>])",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        
+        FigDeriv.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+
+        ### Volume plot
+        FigVolume= go.Figure()
+
+        FigVolume.add_trace(go.Scatter(name = 'V', x=TPx, y=Vol, mode='markers', marker_symbol='circle-open', 
+        marker=dict(color='Black')),) # data
+
+        FigVolume.add_trace(go.Scatter(x=TPx, y=ChebVolObj(TPx), name="V<sub>cheb</sub>", mode='lines', 
+        line=dict(color='Black'))) 
+        FigVolume.update_xaxes(title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigVolume.update_yaxes(title_text="V (\u212B<sup>3</sup>)",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+
+        FigVolume.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        ### Residual Plot
+        FigResidual = go.Figure()
+        for i in range(3):    
+            FigResidual.add_trace(go.Scatter(x=ChebStrainDeg, y=ResStrain[i], name=StrainLabel[i],  mode='lines+markers',
+                line=dict(color=Colour[i]), marker=dict(color=Colour[i])))
+
+        FigResidual.add_trace(go.Scatter(x=ChebVolDeg, y=ResVol, name="V", mode='lines+markers', 
+            line=dict(color='Black'), marker=dict(color='Black'))) 
+
+        FigResidual.update_xaxes(title_text="Degree of Chebyshev polynomial",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+        FigResidual.update_yaxes(title_text="Sum of squared residual",
+        mirror="ticks", ticks='inside', showline=True, linecolor='black')
+
+        FigResidual.update_layout(
+        autosize=False,
+        width=PlotWidth,
+        height=PlotHeight,
+        margin=PlotMargin,
+        showlegend=True,
+        hovermode='x unified',        
+        plot_bgcolor='white')
+
+        StrainJSON = json.dumps(FigStrain, cls=plotly.utils.PlotlyJSONEncoder)
+        DerivJSON = json.dumps(FigDeriv, cls=plotly.utils.PlotlyJSONEncoder)
+        VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)       
+        ResidualJSON = json.dumps(FigResidual, cls=plotly.utils.PlotlyJSONEncoder)
+
+####
+## Indicatrix 3D plot 
+    NormCrax = NormCRAX(CalCrax, PrinComp)
+    maxIn, R, X, Y, Z = Indicatrix(PrinComp)
+
+    if(DataType == 'Temperature'):
+        ColourBarTitle = "Expansivity (MK<sup>–1</sup>)"
+    if(DataType == 'Electrochemical'):
+        ColourBarTitle = "Electrochemical strain charge derivative (units)"
+    if(DataType == 'Pressure'):
+        ColourBarTitle = "K (TPa<sup>–1</sup>)"
+
+    FigIndic = go.Figure()
+
+    for i in range(3):
+    ### Plot the crystallographic axes
+        ArrowLen = 1.6
+        Arrow = NormCrax[i]*ArrowLen
+        FigIndic.add_trace(go.Scatter3d(x=[0, Arrow[0]],
+                                        y=[0, Arrow[1]],
+                                        z=[0, Arrow[2]],
+        mode='lines', line = dict( color = "black", width=4), showlegend = False))
+
+        ### Cone is used for the arrow for each axis
+        ArrowHead = 0.2
+        ArrowObject = go.Cone(
+        x=[Arrow[0]],
+        y=[Arrow[1]],
+        z=[Arrow[2]],
+        u=[Arrow[0]*ArrowHead],
+        v=[Arrow[1]*ArrowHead],
+        w=[Arrow[2]*ArrowHead],
+        anchor="tip",
+        hoverinfo="skip",
+        colorscale=[[0, "black"], [1, "black"]],
+        showlegend=False,
+        showscale=False
+        )
+        FigIndic.add_trace(ArrowObject)
+
+    ### Plot the coefficient of thermal expansion/compressibility
+    FigIndic.add_trace(go.Surface(x=X, y=Y, z=Z, surfacecolor=R, cmax=maxIn, cmin=maxIn*-1, cmid=0, colorscale='rdbu', opacity=1,
+    hovertemplate = 'alpha: %{surfacecolor:.1f}'+\
+                '<br>x: %{x:.1f}'+\
+                '<br>y: %{y:.1f}'+\
+                '<br>z: %{z:.1f}<extra></extra>', colorbar=dict(title=ColourBarTitle,
+        titleside="top",
+        tickmode="array",
+        #tickvals=[maxIn, maxIn*-1], #XXX
+        #ticktext=["positive", "negative"], #XXX 
+        ticks="outside")))
+
+
+    ### Layout and annotations
+    AxesScale=2
+    CraxLabelPos=1.1
+    GridColor = 'grey'
+    FigIndic.update_layout(
+        #title='Indicatrix Plot',
+        autosize=False,
+        width=800,
+        height=800,
+        scene_aspectmode='cube',
+        scene=dict(
+            xaxis=dict(
+                gridcolor=GridColor,
+                #zerolinecolor='black',
+                showbackground=False,
+                #backgroundcolor='rgb(230, 230,230)',
+                range=[-1*maxIn*AxesScale ,maxIn*AxesScale ]
+             ),
+            yaxis=dict(
+                gridcolor=GridColor,
+                #zerolinecolor='black',
+                showbackground=False,
+                #backgroundcolor='rgb(230, 230,230)',
+                range=[-1*maxIn*AxesScale ,maxIn*AxesScale ]
+            ),
+            zaxis=dict(
+                gridcolor=GridColor,
+                #zerolinecolor='black',
+                showbackground=False,
+                #backgroundcolor='rgb(230, 230,230)',
+                range=[-1*maxIn*AxesScale ,maxIn*AxesScale ]
+            ),
+            annotations=[
+             dict(
+                 showarrow=False,
+                x=NormCrax[0][0]*CraxLabelPos*ArrowLen,
+                y=NormCrax[0][1]*CraxLabelPos*ArrowLen,
+                z=NormCrax[0][2]*CraxLabelPos*ArrowLen,
+                text="a",
+                font=dict(
+                    color="black",
+                    size=15)),
+
+            dict(
+                showarrow=False,
+                x=NormCrax[1][0]*CraxLabelPos*ArrowLen,
+                y=NormCrax[1][1]*CraxLabelPos*ArrowLen,
+                z=NormCrax[1][2]*CraxLabelPos*ArrowLen,
+                text="b",
+                font=dict(
+                    color="black",
+                    size=15)),
+
+             dict(
+                showarrow=False,
+                x=NormCrax[2][0]*CraxLabelPos*ArrowLen,
+                y=NormCrax[2][1]*CraxLabelPos*ArrowLen,
+                z=NormCrax[2][2]*CraxLabelPos*ArrowLen,
+                text="c",
+                font=dict(
+                    color="black",
+                    size=15)),
+
+                ]))
+
+    IndicatrixJSON = json.dumps(FigIndic, cls=plotly.utils.PlotlyJSONEncoder)
+
+
+    ####
+    ## Table labels
+    #Axes = ["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"] 
+    Axes = ["X1", "X2", "X3", "V"] 
+    StrainHeadings = [TPxLabel, "X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "X<sub>1, calc</sub>", "X<sub>2, calc</sub>", "X<sub>3, calc</sub>"]
+    InputHeadings = [TPxLabel, "\u03C3T", "a", "b", "c", "ding", "beta", "gamma"]
+
+ ####
+ ## return the data to the page ##return every plots with all the names then if else for each input in HTML
+
+    if DataType == 'Temperature':
+        return render_template('temperature.html'
+        ,PlotStrainJSON = StrainJSON
+        ,PlotVolumeJSON = VolumeJSON
+        ,PlotIndicJSON = IndicatrixJSON
+        ,CoeffThermHeadings = CoeffThermHeadings
+        ,StrainHeadings = StrainHeadings
+        ,VolTempHeadings = VolTempHeadings
+        ,InputHeadings = InputHeadings
+        ,data = data
+        ,Axes = Axes        
+        ,PrinComp = Round(PrinComp, 4)
+        ,CalAlphaErr = Round(CalAlphaErr*1e6, 4)
+        ,Prax = Round(Prax, 4)
+        ,TPx = TPx
+        ,CalStrain = Round(CalStrain*1e2, 4)
+        ,XCal = Round(XCal, 4)
+        ,Vol = Round(Vol, 4)
+        ,VolLin = Round(VolLin, 4)
+        ,VolThermCom = np.round(VolThermCom, 4)
+        ,VolThermComErr = np.round(VolThermComErr,4)
+        ,TPxError = TPxError
+        ,Latt = Latt
+        )
+
+    if DataType == 'Pressure':
+        return render_template('pressure.html'
+        ,PlotStrainJSON = StrainJSON
+        ,PlotDerivJSON = DerivJSON        
+        ,PlotVolumeJSON = VolumeJSON
+        ,PlotIndicJSON = IndicatrixJSON
+        ,KEmpHeadings = KEmpHeadings
+        ,CalEpsilon0 = Round(CalEpsilon0, 4)
+        ,CalLambda = Round(CalLambda, 4)
+        ,CalPc = Round(CalPc, 4)
+        ,CalNu = Round(CalNu, 4)
+        ,StrainHeadings = StrainHeadings
+        ,InputHeadings = InputHeadings
+        ,data = data
+        ,Axes = Axes        
+        ,PrinComp = Round(PrinComp, 4)
+        ,KErr = Round(KErr, 4)
+        ,u = u
+        ,Prax = Round(Prax, 4)
+        ,BMCoeffHeadings = BMCoeffHeadings
+        ,BMOrder = BMOrder
+        ,B0 = Round(B0, 4)
+        ,SigB0 = Round(SigB0, 4)
+        ,V0 = Round(V0, 4)
+        ,SigV0 = Round(SigV0, 4)
+        ,BPrime = Round(BPrime, 4)
+        ,SigBPrime = SigBPrime
+        ,PcCoef = Round(PcCoef, 4)
+        ,KHeadings = KHeadings
+        ,K = Round(K, 4) 
+        ,TPx = TPx
+        ,CalStrain = Round(CalStrain*1e2, 4)
+        ,XCal = Round(XCal, 4)
+        ,VolPressHeadings = VolPressHeadings
+        ,Vol = Round(Vol, 4)
+        ,VolThermCom = np.round(VolThermCom, 4)
+        ,VolThermComErr = np.round(VolThermComErr,4)
+        ,CalPress = Round(CalPress, 4)
+        ,UsePc = UsePc
+        ,TPxError = TPxError
+        ,Latt = Latt
+        )
+
+    if DataType == 'Electrochemical':
+        return render_template('electrochem.html'
+        ,PlotStrainJSON = StrainJSON
+        ,PlotDerivJSON = DerivJSON        
+        ,PlotVolumeJSON = VolumeJSON
+        ,PlotResidualJSON = ResidualJSON
+        ,PlotIndicJSON = IndicatrixJSON
+        ,QPrimeHeadings = QPrimeHeadings
+        ,data = data
+        ,Prax = Round(Prax, 4)
+        ,TPx = TPx
+        ,Axes = Axes
+        ,PrinComp = np.round(PrinComp, 4)
+        ,StrainHeadings = StrainHeadings
+        ,CalStrain = np.round(CalStrain*1e2, 4)
+        ,XCal = Round(XCal, 4)
+        ,DerHeadings = DerHeadings
+        ,Vol = Round(Vol, 4)
+        ,Deriv = np.round(Deriv, 4)
+        ,VolElecHeadings = VolElecHeadings
+        ,VolCheb = Round(VolCheb, 4)
+        ,VolThermCom = np.round(VolThermCom, 4)
+        ,InputHeadings = InputHeadings
+        ,TPxError = TPxError
+        ,Latt = Round(Latt, 4))
 
 if __name__ == '__main__':
-   app.run()
+   app.run(debug=True)

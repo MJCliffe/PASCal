@@ -1,30 +1,294 @@
 <!doctype html>
 <head>
-    <title>Hello Azure - Python Quickstart</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <title>PASCal Beta</title>
+    <link class="image" rel="shortcut icon" href="{{ url_for('static', filename='PASCal_icon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
 <html>
    <body>
      <main>
-        <div class="px-4 py-3 my-2 text-center">
-            <img class="d-block mx-auto mb-4" src="{{ url_for('static', filename='images/azure-icon.svg') }}" alt="Azure Logo" width="192" height="192"/>
-            <!-- <img  src="/docs/5.1/assets/brand/bootstrap-logo.svg" alt="" width="72" height="57"> -->
-            <h1 class="display-6 fw-bold text-primary">Welcome to Azure</h1>            
+        <div class="page">          
+          <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
+          <h1 class="big_title">A web tool for Principal Axis Strain Calculations</h1>
+          <div class = "info">
+            <a class="link" href="{{ url_for('static', filename='PASCalhelp.pdf') }}">Quick Guide</a>
+            <a class="link" href="{{ url_for('static', filename='PASCalCaveats.pdf') }}">Technical information and caveats</a>
+            <br />
+            Hints available on mouseover.
           </div>
-        <form method="post" action="{{url_for('hello')}}">
-            <div class="col-md-6 mx-auto text-center">
-                <label for="name" class="form-label fw-bold fs-5">Could you please tell me your name?</label>
+          <form method="post" action="{{url_for('output')}}">
+            <div class="input_area">
+              <div class="option">
+                <div class="subtitle">Data type:</div>
+                <input type="radio" id="temp" name="DataType" value="Temperature" required="required" checked>
+                <label for="temp">Temperature (K)</label>
+                <input type="radio" id="press" name="DataType" value="Pressure" required="required">
+                <label for="press">Pressure (GPa)</label>
+                <input type="radio" id="elec" name="DataType" value="Electrochemical" required="required">
+                <label for="elec">Electrochemical (mAH/g)</label>
+              </div>
 
-                <!-- <p class="lead mb-2">Could you please tell me your name?</p> -->
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center align-items-center my-1">
-                    <input type="text" class="form-control" id="name" name="name" style="max-width: 256px;">
-                  </div>            
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center my-2">
-                  <button type="submit" class="btn btn-primary btn-lg px-4 gap-3">Say Hello</button>
-                </div>            
+              <div class="option">
+                <div class="subtitle">
+                  <div class="subtitle"><div class="tooltip">
+                    Pressure-induced phase transition:
+                    <span class="tooltiptext">Pressure only. Used if the phase has a phase transition between ambient pressure and the first data point.</span>
+                  </div></div>
+                </div>                
+                <label for="Pc">Use a critical pressure?</label>
+                <input type="checkbox" id="Pc" name="UsePc" value="True">
+                <label for="PcVal">Critical pressure (GPa):</label>
+                <input type="text" id="PcVal" name="PcVal"></input>
+              </div>
+
+              <div class="option">
+                <div class="subtitle"><div class="tooltip">Chebyshev polynomial fitting for electrochemical data:
+                  <span class="tooltiptext">Electrochemical data only. Controls the degree of the polynomial used to fit the strain and volume data.</span>
+                </div></div>                  
+                <label for="DegPolyCap"> Degree(s) of polynomial for strain (1-10): </label>
+                <input type="number" id="DegPolyCap" name="DegPolyCap" min="1" max="10" required="required">
+                <label for="DegPolyVol"> Degree(s) of polynomial for volume (1-10): </label>
+                <input type="number" id="DegPolyVol" name="DegPolyVol" min="1" max="10" required="required">
+              </div>
+
+              <div class="option">
+                <div class="subtitle"><div class="tooltip">Advanced options:
+                  <span class="tooltiptext">Finite strains are more appropriate for large strains. The derivation of the Birch-Murnaghan EoS uses finite Eulerian strain.</span>
+                </div></div>
+                <div>
+                  <input type="radio" id="eulerian" name="StrainType" value="True" required="required" checked>
+                  <label for="eulerian">Eulerian strain</label>
+                  <input type="radio" id="lagrangian" name="StrainType" value="False" required="required" >
+                  <label for="lagrangian">Lagrangian strain</label>
+                </div> 
+                <div>
+                  <input type="radio" id="finite" name="AdvancedOption" value="True" required="required" checked>
+                  <label for="finite">Finite strain</label>
+                  <input type="radio" id="infinitesimal" name="AdvancedOption" value="False" required="required">
+                  <label for="infinitesimal">Infinitesimal strain</label>
+                </div>
+              </div>
+
+              <div class="option">
+                <div class="subtitle"> 
+                  <div class=tooltip>
+                    Non-ambient lattice parameters:<span class="tooltiptext">One phase only</span>
+                  </div>
+                </div>
+                <div class=tooltip>T/P/q<span class="tooltiptext">K, GPa or mAhg<sup>-1</sup></span></div>
+                <div class=tooltip>&nbsp;&nbsp; &#963;&nbsp;(T/P/q)<span class="tooltiptext">K, GPa or mAhg<sup>-1</sup></span></div>&nbsp;&nbsp;
+                <div class=tooltip>a<span class="tooltiptext">&#8491;</span></div>&nbsp;&nbsp;
+                <div class=tooltip>b<span class="tooltiptext">&#8491;</span></div>&nbsp;&nbsp;
+                <div class=tooltip>c<span class="tooltiptext">&#8491;</span></div>&nbsp;&nbsp;
+                <div class=tooltip>&#945;<span class="tooltiptext">º</span></div>&nbsp;&nbsp;
+                <div class=tooltip>&#946;<span class="tooltiptext">º</span></div>&nbsp;&nbsp;
+                <div class=tooltip>&#947;<span class="tooltiptext">º</span></div>
+                <div class="datainput">              
+                  <TEXTAREA class="info" name="data" id ="data" rows="20" cols="66" class= "text_area" required="required" >
+#Variable Temperature Data for Ag3CoCN6 Phase II
+95      5       6.6200  11.3500 6.6230  90.0000 78.5000 90.0000
+120     5       6.6310  11.3622 6.6140  90.0000 78.4680 90.0000
+145     5       6.6328  11.3643 6.6099  90.0000 78.4700 90.0000
+170     5       6.6361  11.3759 6.6007  90.0000 78.4330 90.0000
+195     5       6.6330  11.3829 6.6062  90.0000 78.3690 90.0000
+220     5       6.6379  11.3883 6.6000  90.0000 78.3790 90.0000
+245     5       6.6383  11.3969 6.5980  90.0000 78.3720 90.0000
+270     5       6.6401  11.4091 6.5956  90.0000 78.3490 90.0000
+300     5       6.6415  11.4251 6.5959  90.0000 78.2840 90.0000
+                  </TEXTAREA>    
+                </div>           
+              </div>
+
+              <button type="submit" class="calbutton" onclick="Error_Message()">Calculate principal axes</button>                         
+              <script>
+                function Error_Message() {
+                  if ((document.getElementById('temp').checked === true) || (document.getElementById('press').checked === true)) {
+                      document.getElementById("DegPolyCap").removeAttribute("required");
+                      document.getElementById("DegPolyVol").removeAttribute("required");}
+
+                  if (document.getElementById('elec').checked === true) {
+                      document.getElementById("DegPolyCap").setAttribute("required", "required");
+                      document.getElementById("DegPolyVol").setAttribute("required", "required");
+                  }
+                }
+              </script>
+              </div>
             </div>
-        </form>
-     </main>      
-   </body>
+          </form>              
+          <div class="option">
+            <button onclick="ClearAll()">Clear</button>
+            <script>
+              function ClearAll() {
+                document.getElementById('data').value = ''
+                document.getElementById('temp').checked = true;
+                document.getElementById('press').checked = false;
+                document.getElementById('elec').checked = false;
+                document.getElementById('eulerian').checked = true;
+                document.getElementById('finite').checked = true;                  
+                document.getElementById('Pc').checked = false;
+                document.getElementById('PcVal').value = ''
+                document.getElementById('DegPolyCap').value = ''
+                document.getElementById('DegPolyVol').value = ''
+
+              }
+            </script>
+
+            <button onclick="T_sample()">Sample T Data</button>
+            <script class = "sample">
+              function T_sample() {
+                document.getElementById('data').value = '#Variable Temperature Data for Ag3CoCN6 Phase II\n\
+95      5       6.6200  11.3500 6.6230  90.0000 78.5000 90.0000\n\
+120     5       6.6310  11.3622 6.6140  90.0000 78.4680 90.0000\n\
+145     5       6.6328  11.3643 6.6099  90.0000 78.4700 90.0000\n\
+170     5       6.6361  11.3759 6.6007  90.0000 78.4330 90.0000\n\
+195     5       6.6330  11.3829 6.6062  90.0000 78.3690 90.0000\n\
+220     5       6.6379  11.3883 6.6000  90.0000 78.3790 90.0000\n\
+245     5       6.6383  11.3969 6.5980  90.0000 78.3720 90.0000\n\
+270     5       6.6401  11.4091 6.5956  90.0000 78.3490 90.0000\n\
+300     5       6.6415  11.4251 6.5959  90.0000 78.2840 90.0000'
+                document.getElementById('temp').checked = true;
+                document.getElementById('eulerian').checked = true;
+                document.getElementById('finite').checked = true;
+                document.getElementById('Pc').checked = false;
+                document.getElementById('PcVal').value = ''
+                document.getElementById('DegPolyCap').value = ''
+                document.getElementById('DegPolyVol').value = ''
+              }
+            </script>
+
+            <button onclick="P_sample()">Sample P Data</button>
+            <script>
+              function P_sample() {
+                document.getElementById('data').value = '#Variable Pressure Data for Ag3CoCN6 Phase II\n\
+0.190	1	6.6985	11.5782	6.5554	90	78.522	90\n\
+0.226	1	6.6934	11.5391	6.5661	90	78.521	90.0000\n\
+0.290	1	6.68	11.468	6.577	90	78.47	90.0000\n\
+0.294	1	6.6745	11.497	6.5707	90	78.473	90.0000\n\
+0.395	1	6.6415	11.4251	6.5959	90	78.284	90.0000\n\
+0.55	1	6.605	11.295	6.629	90	78.21	90.0000\n\
+0.78	1	6.553	11.196	6.646	90	77.967	90.0000\n\
+0.90	1	6.539	11.156	6.654	90	77.871	90.0000\n\
+0.92	1	6.5333	11.154	6.6507	90	77.91	90.0000\n\
+1.08	1	6.505	11.116	6.663	90	77.73	90.0000\n\
+1.87	1	6.4172	10.922	6.696	90	77.584	90.0000\n\
+3.02	1	6.2904	10.739	6.747	90	77.39	90.0000\n\
+5.13	1	6.0657	10.493	6.833	90	77.09	90.0000\n\
+6.92	1	5.91	10.333	6.891	90	77.01	90.0000\n\
+7.65	1	5.8657	10.27	6.908	90	76.921	90.0000'
+
+                  document.getElementById('press').checked = true;
+                  document.getElementById('eulerian').checked = true;
+                  document.getElementById('finite').checked = true;
+                  document.getElementById('Pc').checked = true;
+                  document.getElementById('PcVal').value = 0.19
+                  document.getElementById('DegPolyCap').value = ''
+                  document.getElementById('DegPolyVol').value = ''
+              }
+            </script>
+
+            <button onclick="q_sample()">Sample q Data</button><br>
+            <script>
+              function q_sample() {
+                document.getElementById('data').value = '#Variable electrochemical Data for NMC-811 \n\
+Data published in Märker et al., Chem. Mater. 2019, 31, 7, 2545–2554 \n\
+https://pubs.acs.org/doi/10.1021/acs.chemmater.9b00140 \n\
+0.00	0.01	2.8704	2.8704	14.1918	90.0	90.0	120.0\n\
+3.11	0.01	2.8704	2.8704	14.1918	90.0	90.0	120.0\n\
+6.22	0.01	2.8701	2.8701	14.1932	90.0	90.0	120.0\n\
+9.32	0.01	2.8695	2.8695	14.1958	90.0	90.0	120.0\n\
+12.43	0.01	2.8689	2.8689	14.1984	90.0	90.0	120.0\n\
+15.54	0.01	2.8683	2.8683	14.2012	90.0	90.0	120.0\n\
+18.65	0.01	2.8677	2.8677	14.2039	90.0	90.0	120.0\n\
+21.75	0.01	2.8671	2.8671	14.2066	90.0	90.0	120.0\n\
+24.86	0.01	2.8665	2.8665	14.2094	90.0	90.0	120.0\n\
+27.97	0.01	2.8658	2.8658	14.2124	90.0	90.0	120.0\n\
+31.08	0.01	2.865	2.865	14.2157	90.0	90.0	120.0\n\
+34.19	0.01	2.8641	2.8641	14.2196	90.0	90.0	120.0\n\
+37.29	0.01	2.863	2.863	14.2244	90.0	90.0	120.0\n\
+40.40	0.01	2.8616	2.8616	14.2309	90.0	90.0	120.0\n\
+43.51	0.01	2.86	2.86	14.238	90.0	90.0	120.0\n\
+46.62	0.01	2.8587	2.8587	14.2444	90.0	90.0	120.0\n\
+49.72	0.01	2.8576	2.8576	14.2499	90.0	90.0	120.0\n\
+52.83	0.01	2.8567	2.8567	14.255	90.0	90.0	120.0\n\
+55.94	0.01	2.8558	2.8558	14.2595	90.0	90.0	120.0\n\
+59.05	0.01	2.8551	2.8551	14.2638	90.0	90.0	120.0\n\
+62.15	0.01	2.8543	2.8543	14.2682	90.0	90.0	120.0\n\
+65.26	0.01	2.8536	2.8536	14.2726	90.0	90.0	120.0\n\
+68.37	0.01	2.8529	2.8529	14.277	90.0	90.0	120.0\n\
+71.48	0.01	2.8522	2.8522	14.2818	90.0	90.0	120.0\n\
+74.59	0.01	2.8514	2.8514	14.2868	90.0	90.0	120.0\n\
+77.69	0.01	2.8507	2.8507	14.2921	90.0	90.0	120.0\n\
+80.80	0.01	2.8499	2.8499	14.2977	90.0	90.0	120.0\n\
+83.91	0.01	2.8491	2.8491	14.3038	90.0	90.0	120.0\n\
+87.02	0.01	2.8482	2.8482	14.3108	90.0	90.0	120.0\n\
+90.12	0.01	2.8474	2.8474	14.3172	90.0	90.0	120.0\n\
+93.23	0.01	2.8464	2.8464	14.325	90.0	90.0	120.0\n\
+96.34	0.01	2.8454	2.8454	14.3326	90.0	90.0	120.0\n\
+99.45	0.01	2.8444	2.8444	14.3406	90.0	90.0	120.0\n\
+102.56	0.01	2.8434	2.8434	14.3487	90.0	90.0	120.0\n\
+105.66	0.01	2.8423	2.8423	14.3569	90.0	90.0	120.0\n\
+108.77	0.01	2.8412	2.8412	14.3652	90.0	90.0	120.0\n\
+111.88	0.01	2.8401	2.8401	14.3734	90.0	90.0	120.0\n\
+114.99	0.01	2.839	2.839	14.3815	90.0	90.0	120.0\n\
+118.09	0.01	2.8378	2.8378	14.3895	90.0	90.0	120.0\n\
+121.20	0.01	2.8367	2.8367	14.3971	90.0	90.0	120.0\n\
+124.31	0.01	2.8355	2.8355	14.404	90.0	90.0	120.0\n\
+127.42	0.01	2.8344	2.8344	14.4107	90.0	90.0	120.0\n\
+130.53	0.01	2.8332	2.8332	14.4171	90.0	90.0	120.0\n\
+133.63	0.01	2.8321	2.8321	14.4231	90.0	90.0	120.0\n\
+136.74	0.01	2.831	2.831	14.4286	90.0	90.0	120.0\n\
+139.85	0.01	2.8299	2.8299	14.4338	90.0	90.0	120.0\n\
+142.96	0.01	2.8289	2.8289	14.4387	90.0	90.0	120.0\n\
+146.06	0.01	2.8279	2.8279	14.4435	90.0	90.0	120.0\n\
+149.17	0.01	2.8269	2.8269	14.4483	90.0	90.0	120.0\n\
+152.28	0.01	2.8259	2.8259	14.4534	90.0	90.0	120.0\n\
+155.39	0.01	2.8248	2.8248	14.4591	90.0	90.0	120.0\n\
+158.49	0.01	2.8237	2.8237	14.4665	90.0	90.0	120.0\n\
+161.60	0.01	2.8225	2.8225	14.4734	90.0	90.0	120.0\n\
+164.71	0.01	2.8216	2.8216	14.4781	90.0	90.0	120.0\n\
+167.82	0.01	2.8211	2.8211	14.48	90.0	90.0	120.0\n\
+170.93	0.01	2.8201	2.8201	14.483	90.0	90.0	120.0\n\
+174.03	0.01	2.8201	2.8201	14.483	90.0	90.0	120.0\n\
+177.14	0.01	2.8188	2.8188	14.4834	90.0	90.0	120.0\n\
+180.25	0.01	2.8188	2.8188	14.4834	90.0	90.0	120.0\n\
+183.36	0.01	2.8176	2.8176	14.4792	90.0	90.0	120.0\n\
+186.46	0.01	2.8176	2.8176	14.4792	90.0	90.0	120.0\n\
+189.57	0.01	2.8166	2.8166	14.4716	90.0	90.0	120.0\n\
+192.68	0.01	2.8161	2.8161	14.4652	90.0	90.0	120.0\n\
+195.79	0.01	2.8157	2.8157	14.4579	90.0	90.0	120.0\n\
+198.90	0.01	2.8153	2.8153	14.4488	90.0	90.0	120.0\n\
+202.00	0.01	2.8151	2.8151	14.4363	90.0	90.0	120.0\n\
+205.11	0.01	2.815	2.815	14.4202	90.0	90.0	120.0\n\
+208.22	0.01	2.815	2.815	14.4021	90.0	90.0	120.0\n\
+211.33	0.01	2.8147	2.8147	14.3846	90.0	90.0	120.0\n\
+214.43	0.01	2.8143	2.8143	14.3647	90.0	90.0	120.0\n\
+217.54	0.01	2.8139	2.8139	14.3427	90.0	90.0	120.0\n\
+220.65	0.01	2.8134	2.8134	14.3159	90.0	90.0	120.0\n\
+223.76	0.01	2.813	2.813	14.2823	90.0	90.0	120.0\n\
+226.87	0.01	2.8127	2.8127	14.2396	90.0	90.0	120.0\n\
+229.97	0.01	2.8125	2.8125	14.191	90.0	90.0	120.0\n\
+233.08	0.01	2.8122	2.8122	14.1469	90.0	90.0	120.0\n\
+236.19	0.01	2.8119	2.8119	14.1034	90.0	90.0	120.0\n\
+239.30	0.01	2.8118	2.8118	14.0538	90.0	90.0	120.0\n\
+242.40	0.01	2.8117	2.8117	14.0078	90.0	90.0	120.0'
+                document.getElementById('elec').checked = true;
+                document.getElementById('eulerian').checked = true;
+                document.getElementById('finite').checked = true;
+                document.getElementById('Pc').checked = false;
+                document.getElementById('PcVal').value = ''
+                document.getElementById('DegPolyCap').value = 4
+                document.getElementById('DegPolyVol').value = 5
+              }
+            </script>
+          </div> 
+          <div class = "option">
+        Developed by Monthakan Lertkiattrakul and Matthew Cliffe at the <a class="link" href="https://cliffe.nottingham.ac.uk/">Matthew Cliffe</a> 
+        based off the <a href="http://pascal.chem.ox.ac.uk/">original version</a> developed by Matthew Cliffe and <a href="http://goodwin.chem.ox.ac.uk/">Andrew Goodwin</a> at the University of Oxford.
+        Any queries or comments to Matthew.Cliffe[at]nottingham.ac.uk <br />
+        Please cite <a class="link" href="http://dx.doi.org/10.1107/S0021889812043026">M.J. Cliffe and A.L. Goodwin, J. Appl. Cryst. (2012). 45, 1321-1329</a>.
+        The preprint is available at the <a class="link" href="http://arxiv.org/abs/1204.3007">arXiv</a>.
+          </div>
+        </div>
+    </main>
+  </body>
 </html>
