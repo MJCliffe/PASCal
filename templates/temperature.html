@@ -39,9 +39,9 @@
               <td >{{ Axes[i] }}</td>
               <td >{{ PrinComp[i] }}</td>
               <td >{{ CalAlphaErr[i] }}</td>
-              <td >{{ Prax[i][0] }}</td>
-              <td >{{ Prax[i][1] }}</td>
-              <td >{{ Prax[i][2] }}</td>
+              <td >{{ MedianPrinAxCryst[i][0] }}</td>
+              <td >{{ MedianPrinAxCryst[i][1] }}</td>
+              <td >{{ MedianPrinAxCryst[i][2] }}</td>
             </tr>
             {% endfor %}
             <tr>
@@ -80,7 +80,7 @@
               <tr>
                 <td >{{ TPx[i] }}</td>
                 {% for j in range(3) %}
-                <td >{{ CalStrain[j][i] }}</td>
+                <td >{{ DiagStrain[i][j] }}</td>
                 {% endfor %}
                 {% for n in range(3) %}
                 <td >{{ XCal[n][i] }}</td>
@@ -106,6 +106,48 @@
               </tr>
               {% endfor %}
             </table>
+
+            <h2 class="tooltip">Principal Axes<span
+              class="tooltiptext">Principal axes at each point in crystallographic and orthogonal coordinates.</span></h2>         
+  
+              <table>
+                <tr class="table_header">
+                  <th ></th>                  
+                  <th >X<sub>1</sub> </th>
+                  <th ></th>
+                  <th ></th>                  
+                  <th >X<sub>2</sub></th>
+                  <th ></th>
+                  <th ></th>                  
+                  <th >X<sub>3</sub> </th>
+                  <th ></th>
+                  <th ></th>     
+                </tr>
+                <tr class="table_header">
+                  <th >T (K)</th>                  
+                  <th >a </th>
+                  <th >b </th>
+                  <th >c </th>
+                  <th >a </th>
+                  <th >b </th>
+                  <th >c </th>
+                  <th >a </th>
+                  <th >b </th>
+                  <th >c </th>
+                </tr>
+                {% for n in range(TPx|length) %}
+                <tr>
+                  <td >{{ TPx[n] }}</td> 
+                  {% for i in range(3) %}    
+                  {% for j in range(3) %}                                   
+                  <td >{{ PrinAxCryst[n][i][j]}}</td>                  
+                  {% endfor %}               
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+  
+              </table>
+
 
            <h2 class="tooltip">Input<span
             class="tooltiptext">Input as interpreted by PASCal.</span></h2>         

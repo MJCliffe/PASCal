@@ -1,4 +1,3 @@
-import scipy
 import numpy as np
 
 def Round(var, dec):
@@ -12,121 +11,57 @@ def Round(var, dec):
         for i in range(var.shape[0]):
             for j in range(var.shape[1]):
                 var[i][j] = round(var[i][j], dec)
+    if var.ndim == 3:
+        for i in range(var.shape[0]):
+            for j in range(var.shape[1]):
+                for k in range(var.shape[2]):                
+                    var[i][j][k] = round(var[i][j][k], dec)                
     return var
 
-def Orthomat(latt):
+def Orthomat(Latt):
     # Compute the corresponding change-of-basis transformation (square matrix M) in E = M x A
-    # lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
-    alpha = latt[3]*(np.pi/180)
-    beta = latt[4]*(np.pi/180)
-    gamma = latt[5]*(np.pi/180)
+    # Latt: a b c alpha beta gamma (Angstrom, degrees)    
+    orth = np.zeros((np.shape(Latt)[0],3,3))
+    alpha = Latt[:,3]*(np.pi/180)
+    beta = Latt[:,4]*(np.pi/180)
+    gamma = Latt[:,5]*(np.pi/180)
     gaS = np.arccos((np.cos(alpha)*np.cos(beta)-np.cos(gamma))/(np.sin(alpha)*np.sin(beta)))
-    m11 = 1/(latt[0]*np.sin(beta)*np.sin(gaS))
-    m21 = np.cos(gaS)/(latt[1]*np.sin(alpha)*np.sin(gaS))
-    m22 = 1/(latt[1]*np.sin(alpha))
-    m31 = (np.cos(alpha)*np.cos(gaS)/np.sin(alpha)+np.cos(beta)/np.sin(beta))/(-1*latt[2]*np.sin(gaS))
-    m32 = -1*np.cos(alpha)/(latt[2]*np.sin(alpha))
-    m33 = 1/latt[2]
-    return np.array([[m11, 0, 0], [m21, m22, 0], [m31, m32, m33]])
-
-def DiaLinearStrain(LattPam, FiniteStrain, EulerianStrain):
-    # Diagonolise the strain
-    # lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
-    # type of strains; FiniteStrain(True or False), EulerianStrain (True or False)
-    OutStrain = np.zeros((3, LattPam.shape[0]))
-    OutVectors = np.zeros((3, 3, LattPam.shape[0]))
-    for i in range(1, LattPam.shape[0]):
-        if EulerianStrain == False:
-            e = np.matmul(np.linalg.inv(Orthomat(LattPam[i])),Orthomat(LattPam[0]))-np.identity(3)
-        elif EulerianStrain == True:
-            e = np.identity(3)-np.matmul(np.linalg.inv(Orthomat(LattPam[0])),Orthomat(LattPam[i]))
-        if FiniteStrain == False: Strain = (e+np.transpose(e))/2
-        elif FiniteStrain == True: Strain = (e+np.transpose(e)+np.matmul(e, np.transpose(e)))/2
-        values, vector = scipy.linalg.eigh(Strain, lower=False, driver="ev")
-        OutStrain[:,i] = values[:]
-        OutVectors[:,:,i] = vector[:]
-    return OutStrain, OutVectors
-
-def PrePRAXnCRAX(MedLattPam, MedEigenVector):
-    # function used to calculate both the pricipal axes and the crystallographic axes
-    # lattice parameters a b c al be ga at the median point  (Angstrom, degrees)
-    # eigen vector at the median point
-    e = Orthomat(MedLattPam)
-    ep = np.matmul(e, MedEigenVector)
-    trans = np.transpose(ep)
-    return trans
-
-def ProjOfXnOnUnitCell(trans):
-    # calculate the projections of the principal axes onto each of the crystallographic axes, i.e. giving the [UVW] direction of each of the principal axis.
-    # variable trans calcaluted using the function PrePRAXnCRAX()
-    prax = np.zeros((3, 3))
-    for i in range(3):
-        prax[i,:] = trans[i,:]/((np.sum(trans[i,:]**2))**0.5)
-    return prax
+    orth[:,0,0] = 1/(Latt[:,0]*np.sin(beta)*np.sin(gaS))
+    orth[:,1,0] = np.cos(gaS)/(Latt[:,1]*np.sin(alpha)*np.sin(gaS))
+    orth[:,2,0] = (np.cos(alpha)*np.cos(gaS)/np.sin(alpha)+np.cos(beta)/np.sin(beta))/(-1*Latt[:,2]*np.sin(gaS))
+    orth[:,1,1] = 1/(Latt[:,1]*np.sin(alpha))
+    orth[:,2,1] = -1*np.cos(alpha)/(Latt[:,2]*np.sin(alpha))
+    orth[:,2,2] = 1/Latt[:,2]
+    return orth
+    #m11 = 1/(Latt[0]*np.sin(beta)*np.sin(gaS))
+    #m21 = np.cos(gaS)/(Latt[1]*np.sin(alpha)*np.sin(gaS))
+    #m22 = 1/(Latt[1]*np.sin(alpha))
+    #m31 = (np.cos(alpha)*np.cos(gaS)/np.sin(alpha)+np.cos(beta)/np.sin(beta))/(-1*Latt[2]*np.sin(gaS))
+    #m32 = -1*np.cos(alpha)/(Latt[2]*np.sin(alpha))
+    #m33 = 1/Latt[2]
+    #return np.array([[m11, 0, 0], [m21, m22, 0], [m31, m32, m33]])
 
 def CellVol(LattPam):
     # Calculate the unit-cell volume
-    # lattice parameters a b c al be ga at the median point  (Angstrom, degrees)
+    # Lattice parameters a b c al be ga at the median point  (Angstrom, degrees)
     vol = np.zeros((LattPam.shape[0]))
     for i in range(0, LattPam.shape[0]):
-        latt = LattPam[i]
-        vol[i] = latt[0]*latt[1]*latt[2]*((1-np.cos(latt[3]*(np.pi/180))**2)-(np.cos(latt[4]*(np.pi/180))**2)
-        -(np.cos(latt[5]*(np.pi/180))**2)+(2*np.cos(latt[3]*(np.pi/180))*np.cos(latt[4]*(np.pi/180))
-        *np.cos(latt[5]*(np.pi/180))))**(0.5)
+        Latt = LattPam[i]
+        vol[i] = Latt[0]*Latt[1]*Latt[2]*((1-np.cos(Latt[3]*(np.pi/180))**2)-(np.cos(Latt[4]*(np.pi/180))**2)
+        -(np.cos(Latt[5]*(np.pi/180))**2)+(2*np.cos(Latt[3]*(np.pi/180))*np.cos(Latt[4]*(np.pi/180))
+        *np.cos(Latt[5]*(np.pi/180))))**(0.5)
     return vol
 
-def linear_func(x,a,b): ####NOT USED
-    return a*x+b
-
-def linfit(strain, TP,TPErr): ####NOT USED
-    #Execute linear fit of strain to obtain alpha (gradient), This is also coefficient of thermal expansion
-    #strain: numpy array 3 x data points, strain
-    #TP: temperature/pressure/electrochem x data points, numpy array
-    #TPErr: std err in TP
-    #Output:
-    #Alpha:
-    #...
-    Alpha = np.zeros(3)
-    Offset = np.zeros(3)
-    AlphaErr = np.zeros(3)
-    OffsetErr = np.zeros(3)
-    for i in range(3):
-        popt,pcov = scipy.optimize.curve_fit(linear_func,TP,strain[i],sigma=TPErr)
-        Alpha[i] = popt[0]
-        Offset[i] = popt[1]
-        AlphaErr[i] = np.sqrt(pcov[0,0])
-        OffsetErr[i] = np.sqrt(pcov[1,1])
-    return Alpha, Offset, AlphaErr, OffsetErr
-
-def StrainFit(x, y, yErr, n):
-    #least square
-    # Calculate the gradient, y intercept and the error from the linear fit
-    # x: input temperature or pressure data (K, MPa)
-    # y: calculated strain (decimal)
-    # yErr: errors in input temperature data (K)
-    Alpha = np.zeros(n)
-    Offset = np.zeros(n)
-    AlphaErr = np.zeros(n)
-    #OffsetErr = np.zeros(3)
-    for i in range(n):
-        Del = sum(np.power(yErr,-2))*sum(np.power((x/yErr),2))-(np.power(sum(x/np.power(yErr,2)),2))
-        Offset[i] = (sum(np.power((x/yErr),2))*sum(y[i]/np.power(yErr,2))-sum(x/np.power(yErr, 2))*sum(x*y[i]/np.power(yErr,2)))/Del
-        Alpha[i]= (sum(x*y[i]/np.power(yErr,2))*sum(1/np.power(yErr,2))-sum(x/np.power(yErr,2))*sum(y[i]/np.power(yErr,2)))/Del
-        U = y[i]-(Offset[i]+Alpha[i]*np.array(x))
-        sig_b =(np.power(sum(x),2)*sum(np.power(U,2))-2*len(x)*sum(x)*sum(np.power(U,2)*x) + np.power(len(x),2)*sum(np.power(U,2)*np.power(x,2)))/np.power((len(x)*sum(np.power(x,2))-np.power(sum(x),2)),2)
-        AlphaErr[i] = np.sqrt(sig_b)
-    return Alpha, Offset, AlphaErr
-
-def EmpEq(TP, Epsilon0, Pc, lambdaP, Nu):
+def EmpEq(TP, Epsilon0, lambdaP, Pc, Nu):
     # Empirical fit for pressure input data
     # TP: pressure data points, numpy array
-    # Epsilon0: calculated strain (decimal)
+    # Epsilon0: calculated strain (
     # lambdaP: gradient from the linear fit
     # Pc: critical pressure (GPa)
     # Nu: 0.5
     return Epsilon0+(lambdaP*((TP-Pc)**Nu))
 
-def Comp(lambdaP, Nu, TP, Pc):
+def Comp(TP, lambdaP, Pc, Nu):
     # Calculate the compressibility from the derivative -de/dp
     # TP: pressure data points, numpy array
     # lambdaP: gradient from the linear fit
@@ -134,25 +69,26 @@ def Comp(lambdaP, Nu, TP, Pc):
     # Nu: 0.5
     return -lambdaP*Nu*((TP-Pc)**(Nu-1))
 
-def CompErr(Pcov, Pc, Nu, lambdaP, TP): ### need to check again with FORTRAN
+def CompErr(Pcov, TP, lambdaP, Pc, Nu): 
     # Calculate errors in compressibilities
     # TP: pressure data points, numpy array
     # lambdaP: gradient from the linear fit
     # Pc: critical pressure (GPa)
     # Nu: 0.5
     # Pcov: the estimated covariance of optimal values of the empirical parameters
+    
     Jac = np.zeros((4, TP.shape[0])) #jacobian matrix
     KErr = np.zeros(TP.shape[0])
-    for i in range(0, len(TP)):
-        Jac[0][i] = 0
-        Jac[1][i] = ((TP[i]-Pc)**(Nu-1))*Nu
-        Jac[2][i] = -lambdaP*Nu*(Nu-1)*(TP[i]-Pc)**(Nu-2)
-        Jac[3][i] = Nu*np.log(TP[i]-Pc+1)*(TP[i]-Pc)**(Nu-1)*lambdaP
+    for n in range(0, len(TP)):
+        Jac[0][n] = 0
+        Jac[1][n] = ((TP[n]-Pc)**(Nu-1))*Nu
+        Jac[2][n] = -1*lambdaP*Nu*(Nu-1)*(TP[n]-Pc)**(Nu-2)
+        Jac[3][n] = (Nu*np.log(TP[n]-Pc)+1)*((TP[n]-Pc)**(Nu-1))*lambdaP
         KErrPoint = 0
         for j in range(0, 4):
-            for n in range(0, 4):
-                KErrPoint = KErrPoint+Jac[j][i]*Jac[n][i]*Pcov[j][n]
-        KErr[i] = KErrPoint**0.5
+            for i in range(0, 4):
+                KErrPoint = KErrPoint+Jac[j][n]*Jac[i][n]*Pcov[j][i]                
+        KErr[n] = KErrPoint**0.5
     return KErr
 
 def Eta(V, V0):
@@ -193,15 +129,8 @@ def WrapperThirdBMPc(InpPc):
         return ThirdBMPc(V, V0, B0, Bprime, Pc)
     return TempFunc
 
-
-def CRAX(trans):
-    # Compute crystallogrphic axes in crystallographic coordinate
-    # variable trans calcaluted from the function PrePRAXnCRAX()
-    crax = np.linalg.inv(trans)
-    return crax
-
 def NormCRAX(CalCrax, PrinComp):
-    # Normalise the crystallogrphic axes for the indicatrix plot
+    # Normalise the crystallographic axes for the indicatrix plot
     # CalCrax: calculated crystallogrphic axes
     # PrinComp: 3 principal components which are
     # coefficient of thermal expansion (MK^-1) or

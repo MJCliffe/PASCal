@@ -1,18 +1,13 @@
-from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import plotly
-import plotly.express as px
 import plotly.graph_objs as go
 import plotly.subplots
-from plotly.subplots import make_subplots
+import statsmodels.api as sm
 
 import numpy as np
 import json
 import os
 
-import scipy
-from scipy import stats
-from scipy import linalg as la
 from scipy.optimize import curve_fit
 
 from PASCal import *
@@ -68,39 +63,92 @@ def output():
     TPx = np.array(TPx)
     TPxError = np.array(TPxError)
     Latt = np.stack(Latt)
-
+    Vol = CellVol(Latt) #volumes in (Angstrom^3)
+    
     if StrainType == "True": EulerianStrain = True
     elif StrainType == "False": EulerianStrain = False
 
     if AdvancedOption == "True": FiniteStrain = True
     elif AdvancedOption == "False": FiniteStrain = False
 
-####
-## Strain calculation
-    CalStrain, CalVectors = DiaLinearStrain(Latt, FiniteStrain, EulerianStrain) # CalStrain: strain eigenvalues; CalVectors: strain eigenvectors in orthonormal axes
-    XCal = np.zeros((3, TPx.shape[0])) # array for fitted strain
-    u = int(np.ceil(len(TPx)/2)) # median 
-    CalTrans = PrePRAXnCRAX(Latt[u], CalVectors[:,:,u]) # transformation matrix variable used to calculate both the principal axes and the crystallographic axes
-    Prax = ProjOfXnOnUnitCell(CalTrans) # Eigenvector projected on crystallographic axes
-    CalCrax = CRAX(CalTrans) # Compute crystallogrphic axes in crystallographic coordinate XXX
+    percent = 1e2 # conversions
+    TPa = 1e3 # GPa to TPa
+    MK = 1e6 # K to MK
+    kAhg = 1e6 # mAhg-1 to kAhg-1
 
+    u = int(np.ceil(len(TPx)/2)+1) # median 
+    length =np.shape(Latt)[0] ##fix notation
+####
+
+### Strain calculations
+    Orth = Orthomat(Latt[:]) #cell in orthogonal axes
+    if(EulerianStrain): # Strain calculation
+        Strain = np.identity(3)-np.matmul(np.linalg.inv(Orth[0,:]),Orth[0:,:])
+    else:
+        Strain = np.matmul(np.linalg.inv(Orth[0:,:]),Ortho[0,:])-np.identity(3)    
+    if(FiniteStrain): #Symmetrising to remove shear
+        Strain = (Strain+np.transpose(Strain,axes=[0,2,1])+np.matmul(Strain, np.transpose(Strain,axes=[0,2,1])))/2
+    else:
+        Strain = (Strain+np.transpose(Strain,axes=[0,2,1]))/2
+    DiagStrain,PrinAx = np.linalg.eigh(Strain) #Diagonalising to get eigenvectors and values, PrinAx is in orthogonal coordinates
+
+### Axes matching    
+    for n in range(2,length):
+        Match = np.dot(PrinAx[1,:],PrinAx[n,]) #an array matching the axes against each other
+        AxesOrder = np.zeros((3),dtype=np.int8) #a list of the axes needed to convert the eigenvalues and vectors into a consistent format
+        for i in range(3):
+            AxesOrder[i] = np.argmax(np.abs(Match[i,:]))        
+        for i in range(3):
+            if(np.count_nonzero(AxesOrder == i)!=1):
+                 AxesOrder = np.array((0,1,2),dtype=np.int8) # if the auto match fails, set it back to normal
+                 print('Axes automatching failed for row: ',n,' TPx:', TPx[n])
+        DiagStrain[n,[0,1,2]] = DiagStrain[n,AxesOrder]
+        PrinAx[n,:,[0,1,2]] = PrinAx[n,:,AxesOrder]
+
+### Calculating Eigenvectors and Cells in different coordinate systems
+    PrinAxCryst = np.transpose(np.matmul(Orth,PrinAx[:,:,:]),axes=[0,2,1]) #Eigenvector projected on crystallographic axes, UVW
+    CrystPrinAx = np.linalg.inv(PrinAxCryst) #Unit Cell in Principal axes coordinates, å
+    PrinAxCryst = (PrinAxCryst.T/(np.sum(PrinAxCryst**2,axis=2)**0.5).T).T  #normalised to make UVW near 1
+    #transpositions to take advantage of broadcasting, not maths
+    MedianPrinAxCryst = PrinAxCryst[u]
+        
 ####
 ## Linear fitting of volume and lattice parameters
-    Vol = CellVol(Latt) #volumes in (Angstrom^3)
-    VolLinFit = scipy.stats.linregress(TPx, Vol) # check errors
-    VolGrad =VolLinFit.slope
-    VolYInt = VolLinFit.intercept
-    VolLin = TPx*VolGrad + VolYInt
+    ## Linear strain fitting
+    CalAlpha = np.zeros(3)
+    CalAlphaErr = np.zeros(3)
+    CalYInt = np.zeros(3)
+    XCal = np.zeros((3, TPx.shape[0])) 
+    for i in range(3):          
+        X = sm.add_constant(TPx)
+
+        StrainModel = sm.WLS(DiagStrain[:,i],X,weights=1/TPxError) # weighted least square
+        StrainResults = StrainModel.fit()
+        CalAlpha[i] = StrainResults.params[1]
+        CalYInt[i] = StrainResults.params[0]
+        CalAlphaErr[i] = StrainResults.HC0_se[1] 
+        XCal[i] =(CalAlpha[i]*TPx+CalYInt[i])*percent # for output
     
-    if DataType != 'Electrochemical':
-        VolError = np.ones(Latt.shape[0])        
-        CalAlpha,CalYInt,CalAlphaErr = StrainFit(TPx, CalStrain, TPxError, 3) # why is this here twice?!
-        #CalVolAlpha, CalVolYInt, CalVolAlphaErr = StrainFit(Vol, TPx, VolError, 1) # whatever this is wrong.
+    ## Volume fitting
+    X = sm.add_constant(TPx)
+    VolModel = sm.WLS(Vol,X,weights=1/TPxError) #weighted least squares
+    VolResults = VolModel.fit()
+    VolGrad = VolResults.params[1]
+    VolYInt = VolResults.params[0]
+    VolGradErr = VolResults.HC0_se[1]
+    VolLin = TPx*VolGrad+VolYInt
+
+    #X = sm.add_constant(Vol)
+    #VolModel = sm.WLS(TPx,X,weights=1/TPxError) #weighted least squares backward <- this doesn't really make sense
+    #VolResults = VolModel.fit()
+    #VolGrad = 1/VolResults.params[1]
+    #VolYInt = -1*VolResults.params[0]/VolResults.params[1]
+    #VolGradErr = VolResults.HC0_se[1]/VolResults.params[1]/VolResults.params[1]
+    #VolLin = TPx*VolGrad+VolYInt
 
  ## Plotting
     Colour = ['Red', 'Green', 'Blue'] #standard axes colours
     StrainLabel = ["\u03B5<sub>1</sub>", "\u03B5<sub>2</sub>", "\u03B5<sub>3</sub>"]
-    AxesLabel = ["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>"]
     StrainFitLabel = ["\u03B5<sub>1,calc</sub>", "\u03B5<sub>2,calc</sub>", "\u03B5<sub>3,calc</sub>"]
     PlotWidth=500
     PlotHeight=500
@@ -114,25 +162,17 @@ def output():
         VolTempHeadings = [TPxLabel, "V (A^3)", "VLin (A^3)"]
     
         ### unit conversions        
-        VolThermCom =VolGrad/Vol[0]*1e6
-        VolThermComErr = VolLinFit.stderr/Vol[0]*1e6
-
-        #VolThermCom =VolGrad/Vol[0]*1e6 #convert to coefficient of thermal expansion (MK^-1)
-
-        #VolThermComErr = (CalVolAlphaErr/Vol[0])*1e6 #XXX    
-
-        #print( VolGrad, VolYInt, VolLinFit.stderr)
-        #print(CalVolAlpha, CalVolYInt, CalVolAlphaErr)
-
-        PrinComp = CalAlpha*1e6
+        VolThermCom =VolGrad/Vol[0]*MK
+        VolThermComErr = VolGradErr/Vol[0]*MK
+        PrinComp = CalAlpha*MK
 
         ### Strain Plot
         FigStrain = go.Figure()
         for i in range(3):                                        
             ### Temperature (K) vs strain (percentage) graph along each axis
-            FigStrain.add_trace(go.Scatter(x=TPx, y=CalStrain[i]*1e2, name=StrainLabel[i],  mode='markers', marker_symbol='circle-open', 
+            FigStrain.add_trace(go.Scatter(x=TPx, y=DiagStrain[:,i]*percent,name=StrainLabel[i],  mode='markers', marker_symbol='circle-open', 
                 marker=dict(color=Colour[i]))) #strain data
-            FigStrain.add_trace(go.Scatter(x=TPx, y=(CalAlpha[i]*TPx+CalYInt[i])*1e2, name=StrainFitLabel[i], mode='lines',
+            FigStrain.add_trace(go.Scatter(x=TPx, y=(CalAlpha[i]*TPx+CalYInt[i])*percent, name=StrainFitLabel[i], mode='lines',
                 line=dict(color=Colour[i]))) #strain linear fit
         
         FigStrain.update_xaxes(title_text="Temperature (K)",
@@ -193,42 +233,37 @@ def output():
         K = np.zeros((3, Latt.shape[0])) #compressibilities TPa-1
         KErr = np.zeros((3, Latt.shape[0])) # errors in K TPa-1
 
-        VolThermCom =VolGrad/Vol[0]*1e3
-        VolThermComErr = VolLinFit.stderr/Vol[0]*1e3
-
-
-
-        ### Bounds for the empirical fit
-        EmpBounds = np.array([[-np.inf, -np.inf, -np.inf, -np.inf], [np.inf, min(TPx), np.inf, np.inf]])
-
-        for i in range(3):           
-                        
-            CalEmPopt[i], CalEmPcov[i]= curve_fit(EmpEq, TPx, CalStrain[i], p0=np.array([CalYInt[i], min(TPx), CalAlpha[i], 0.5]),
-            bounds=EmpBounds, maxfev=5000)
-
-            CalEpsilon0 = np.array([CalEmPopt[0][0], CalEmPopt[1][0], CalEmPopt[2][0]])
-            CalLambda = np.array([CalEmPopt[0][2], CalEmPopt[1][2], CalEmPopt[2][2]])
-            CalPc = np.array([CalEmPopt[0][1], CalEmPopt[1][1], CalEmPopt[2][1]])
-            CalNu = np.array([CalEmPopt[0][3], CalEmPopt[1][3], CalEmPopt[2][3]])
-
-            XCal[i][:] = EmpEq(TPx[:], CalEmPopt[i][0], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])*1e2 # strain %
-            K[i][:] = Comp(CalEmPopt[i][2], CalEmPopt[i][3], TPx[:], CalEmPopt[i][1])*1e3 # compressibilities (TPa^-1)
-            KErr[i][:] = CompErr(CalEmPcov[i], CalEmPopt[i][1], CalEmPopt[i][3], CalEmPopt[i][2], TPx)*1e3 # errors in compressibilities (TPa^-1)
+        VolThermCom =VolGrad/Vol[0]*TPa
+        VolThermComErr = VolGradErr/Vol[0]*TPa
         
+        ### Bounds for the empirical fit
+        EmpBounds = np.array([[-np.inf, -np.inf, -np.inf, -np.inf], [np.inf, np.inf,min(TPx), np.inf]])
+
+        for i in range(3):                             
+            CalEmPopt[i], CalEmPcov[i]= curve_fit(EmpEq, TPx, DiagStrain[:,i], p0=np.array([CalYInt[i], min(TPx), CalAlpha[i], 0.5]),
+            bounds=EmpBounds, maxfev=5000,sigma=TPxError)         
+            XCal[i][:] =   EmpEq(TPx[:], CalEmPopt[i][0], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])*percent # strain %
+            K[i][:] =       Comp(TPx[:],CalEmPopt[i][1], CalEmPopt[i][2],  CalEmPopt[i][3])*TPa # compressibilities (TPa^-1) so multiply by 1e3
+            KErr[i][:] = CompErr(CalEmPcov[i],TPx[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])*TPa # errors in compressibilities (TPa^-1)
+        
+        CalEpsilon0 = np.array([CalEmPopt[0][0], CalEmPopt[1][0], CalEmPopt[2][0]])
+        CalLambda = np.array([CalEmPopt[0][1], CalEmPopt[1][1], CalEmPopt[2][1]])
+        CalPc = np.array([CalEmPopt[0][2], CalEmPopt[1][1], CalEmPopt[2][2]])
+        CalNu = np.array([CalEmPopt[0][3], CalEmPopt[1][3], CalEmPopt[2][3]])
         PrinComp = np.array([K[0][u], K[1][u], K[2][u]]) # median compressibilities (TPa^-1) for indicatrix plot
 
         ### Volume fits
-        PoptSecBM, PcovSecBM = curve_fit(SecBM, Vol, TPx, p0=np.array([Vol[0], -Vol[0]*(TPx[-1]-TPx[0])/(Vol[-1]-Vol[0])]), maxfev=5000) # second-order Birch-Murnaghan fit
+        PoptSecBM, PcovSecBM = curve_fit(SecBM, Vol, TPx, p0=np.array([Vol[0], -Vol[0]*(TPx[-1]-TPx[0])/(Vol[-1]-Vol[0])]), maxfev=5000,sigma=TPxError) # second-order Birch-Murnaghan fit
         SigV0SecBM, SigB0SecBM = np.sqrt(np.diag(PcovSecBM))
 
         IntBprime = (-Vol[0]*(TPx[-1]-TPx[0])/(Vol[-1]-Vol[0]))/(TPx[-1]-TPx[0]) # B prime=dB/dp  initial guess for the third-order Birch-Murnaghan fitting
         
-        PoptThirdBM, PcovThirdBM = curve_fit(ThirdBM, Vol, TPx, p0=np.array([Vol[0], PoptSecBM[1], IntBprime]), maxfev=5000) # third-order Birch-Murnaghan fit
+        PoptThirdBM, PcovThirdBM = curve_fit(ThirdBM, Vol, TPx, p0=np.array([Vol[0], PoptSecBM[1], IntBprime]), maxfev=5000,sigma=TPxError) # third-order Birch-Murnaghan fit
         SigV0ThirdBM, SigB0ThirdBM, SigBprimeThirdBM = np.sqrt(np.diag(PcovThirdBM))
 
         if UsePc == "True": ## if a critical pressure is USED
             PoptThirdBMPc, PcovThirdBMPc = curve_fit(WrapperThirdBMPc(InpPc), Vol, TPx, 
-            p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]), maxfev=5000) # trhid order BM fit +Pc
+            p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]), maxfev=5000,sigma=TPxError) # third order BM fit +Pc
             SigV0ThirdBMPc, SigB0ThirdBMPc, SigBprimeThirdBMPc = np.sqrt(np.diag(PcovThirdBMPc))
 
         ### Birch-Murnaghan coefficients
@@ -260,9 +295,9 @@ def output():
         ### Strain Plot
         FigStrain = go.Figure()
         for i in range(3):
-            FigStrain.add_trace(go.Scatter(name=StrainLabel[i], x=TPx, y=CalStrain[i]*1e2,mode='markers', marker_symbol='circle-open',
+            FigStrain.add_trace(go.Scatter(name=StrainLabel[i], x=TPx, y=DiagStrain[:,i]*percent,mode='markers', marker_symbol='circle-open',
             marker=dict(color=Colour[i]))) # strain
-            FigStrain.add_trace(go.Scatter(name=StrainFitLabel[i], x=np.linspace(TPx[0], TPx[-1], num=1000), y=EmpEq(np.linspace(TPx[0], TPx[-1], num=1000), *CalEmPopt[i])*1e2,
+            FigStrain.add_trace(go.Scatter(name=StrainFitLabel[i], x=np.linspace(TPx[0], TPx[-1], num=1000), y=EmpEq(np.linspace(TPx[0], TPx[-1], num=1000), *CalEmPopt[i])*percent,
             mode='lines', line=dict(color=Colour[i]))) # fit strain
         
         FigStrain.update_xaxes(title_text="Pressure (GPa)",
@@ -294,8 +329,8 @@ def output():
                 line=dict(color=Colour[i]),
                 name=KLabel[i],hoverinfo="skip",opacity=0.25))
 
-            FigDeriv.add_trace(go.Scatter(name=KLabel[i], x=np.linspace(TPx[0], TPx[-1], num=200), y=np.array(Comp(CalEmPopt[i][2], CalEmPopt[i][3],
-            np.linspace(TPx[0], TPx[-1], num=200), CalEmPopt[i][1]))*1e3, 
+            FigDeriv.add_trace(go.Scatter(name=KLabel[i], x=np.linspace(TPx[0], TPx[-1], num=200), 
+                y=Comp(np.linspace(TPx[0], TPx[-1], num=200),CalEmPopt[i][1], CalEmPopt[i][2],  CalEmPopt[i][3])*TPa, # compressibilities (TPa^-1) so multiply by 1e3, 
             mode='lines', line=dict(color=Colour[i])))
 
         FigDeriv.update_xaxes(title_text="Pressure (GPa)",
@@ -351,7 +386,7 @@ def output():
         ### 
         TPxLabel = "q(mAhg^-1)"
         QPrimeLabel = ["q'<sub>1</sub>", "q'<sub>2</sub>", "q'<sub>3</sub>"]
-        QPrimeHeadings = ["Axes", "q'(%/KAhg^-1)", "a", "b", "c"]
+        QPrimeHeadings = ["Axes", "q'(kAhg^-1)^-1", "a", "b", "c"]
         VolElecHeadings = [TPxLabel, "V(A^3)", "VCheb(A^3)"]
         DerHeadings = [TPxLabel, "q1'", "q2'", "q3'"]        
 
@@ -367,7 +402,7 @@ def output():
             CoefAxis = [] # Chebyshev coefficients for each principal axis
             for j in range(1, DegPolyCap+1): #for every degree                
                 ChebStrainDeg[j-1] = int(j) # the degrees of Chebyshev polynomials for plotting the graph                
-                coef, FullList = np.polynomial.chebyshev.chebfit(TPx, CalStrain[i], j, full=True) #fitting                
+                coef, FullList = np.polynomial.chebyshev.chebfit(TPx, DiagStrain[:,i], j, full=True) #fitting                
                 CoefAxis.append(coef)  #Chebyshev coefficients ordered from low to high for each degree     
                 ResStrain[i][j-1] = FullList[0][0] #include residual
             
@@ -377,7 +412,7 @@ def output():
             XCal[i] = np.polynomial.chebyshev.chebval(TPx, CoefStrainOp) # Chebyshev coefficients that give the smallest residual for each axis
             ChebObj.append(np.polynomial.chebyshev.Chebyshev(CoefStrainOp)) # store Chebyshev objects for each axis            
             ChebDer[i] = np.polynomial.chebyshev.chebder(CoefStrainOp, m=1, scl=1, axis=0) # Chebyshev series coefficients of the derivative
-            Deriv[i][:] = np.polynomial.chebyshev.chebval(TPx, ChebDer[i])*1e5 # derivative at datapoints, now in muAhg^-1?
+            Deriv[i][:] = np.polynomial.chebyshev.chebval(TPx, ChebDer[i])*kAhg # derivative at datapoints, now in muAhg^-1?
                     
         PrinComp = np.array([Deriv[0][u], Deriv[1][u], Deriv[2][u]])# median derivatives of the Chebyshev polynomial (1/muAhg^-1) for the indicatrix plot
 
@@ -396,14 +431,14 @@ def output():
         VolCheb = np.polynomial.chebyshev.chebval(TPx, CoefVolOp) #calc volume from best Cheb fit
         ChebVolObj = np.polynomial.chebyshev.Chebyshev(CoefVolOp)
         VolDer = np.polynomial.chebyshev.chebder(CoefVolOp, m=1, scl=1, axis=0)
-        VolThermCom = np.polynomial.chebyshev.chebval(TPx, VolDer)[u]*1e5
-        print(VolThermCom)
+        VolThermCom = np.polynomial.chebyshev.chebval(TPx, VolDer)[u]*kAhg
+        
         ### Strain Plot
         FigStrain = go.Figure()
         for i in range(3): #adapt to plot every range
-            FigStrain.add_trace(go.Scatter(x=TPx, y=CalStrain[i]*1e2, name=StrainLabel[i], mode='markers', marker_symbol='circle-open',
+            FigStrain.add_trace(go.Scatter(x=TPx, y=DiagStrain[:,i]*percent, name=StrainLabel[i], mode='markers', marker_symbol='circle-open',
                 marker=dict(color=Colour[i])))
-            FigStrain.add_trace(go.Scatter(x=TPx, y=ChebObj[i](TPx)*1e2, name=StrainFitLabel[i], mode='lines', 
+            FigStrain.add_trace(go.Scatter(x=TPx, y=ChebObj[i](TPx)*percent, name=StrainFitLabel[i], mode='lines', 
                     line=dict(color=Colour[i])))            
 
         FigStrain.update_xaxes(title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
@@ -427,13 +462,13 @@ def output():
             FigDeriv.add_trace(go.Scatter(x=TPx, y=Deriv[i], name=QPrimeLabel[i], legendgroup = '5', mode='markers', marker_symbol='circle-open',
             marker=dict(color=Colour[i])))
             FigDeriv.add_trace(go.Scatter(x=np.linspace(TPx[0], TPx[-1], num=300),
-            y=np.polynomial.chebyshev.chebval(np.linspace(TPx[0], TPx[-1], num=300), ChebDer[i])*1e6,
+            y=np.polynomial.chebyshev.chebval(np.linspace(TPx[0], TPx[-1], num=300), ChebDer[i])*kAhg,
             name=QPrimeLabel[i], mode='lines', line=dict(color=Colour[i])))   
 
         FigDeriv.add_hline(y=0)
         FigDeriv.update_xaxes(title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
         mirror="ticks", ticks='inside', showline=True, linecolor='black')
-        FigDeriv.update_yaxes(title_text="Charge-derivative of the electrochemical strain' (1/[muAhg<sup>-1</sup>])",
+        FigDeriv.update_yaxes(title_text="Charge-derivative of the electrochemical strain' (1/[kAhg<sup>-1</sup>])",
         mirror="ticks", ticks='inside', showline=True, linecolor='black')
         
         FigDeriv.update_layout(
@@ -498,13 +533,13 @@ def output():
 
 ####
 ## Indicatrix 3D plot 
-    NormCrax = NormCRAX(CalCrax, PrinComp)
+    NormCrax = NormCRAX(CrystPrinAx[u,:,:], PrinComp)
     maxIn, R, X, Y, Z = Indicatrix(PrinComp)
 
     if(DataType == 'Temperature'):
         ColourBarTitle = "Expansivity (MK<sup>–1</sup>)"
     if(DataType == 'Electrochemical'):
-        ColourBarTitle = "Electrochemical strain charge derivative (units)"
+        ColourBarTitle = "Electrochemical strain charge derivative ([kAhg<sup>–1</sup>]<sup>–1</sup>)"
     if(DataType == 'Pressure'):
         ColourBarTitle = "K (TPa<sup>–1</sup>)"
 
@@ -536,8 +571,8 @@ def output():
         )
         FigIndic.add_trace(ArrowObject)
 
-    ### Plot the coefficient of thermal expansion/compressibility
-    FigIndic.add_trace(go.Surface(x=X, y=Y, z=Z, surfacecolor=R, cmax=maxIn, cmin=maxIn*-1, cmid=0, colorscale='rdbu', opacity=1,
+    ### Plot the indicatrix
+    FigIndic.add_trace(go.Surface(x=X, y=Y, z=Z, surfacecolor=R, cmax=maxIn, cmin=maxIn*-1, cmid=0, colorscale='rdbu', opacity=0.5,
     hovertemplate = 'alpha: %{surfacecolor:.1f}'+\
                 '<br>x: %{x:.1f}'+\
                 '<br>y: %{y:.1f}'+\
@@ -639,10 +674,11 @@ def output():
         ,data = data
         ,Axes = Axes        
         ,PrinComp = Round(PrinComp, 4)
-        ,CalAlphaErr = Round(CalAlphaErr*1e6, 4)
-        ,Prax = Round(Prax, 4)
+        ,CalAlphaErr = Round(CalAlphaErr*MK, 4)
+        ,MedianPrinAxCryst = Round(MedianPrinAxCryst, 4)
+        ,PrinAxCryst = Round(PrinAxCryst, 4)
         ,TPx = TPx
-        ,CalStrain = Round(CalStrain*1e2, 4)
+        ,DiagStrain = Round(DiagStrain*percent, 4)
         ,XCal = Round(XCal, 4)
         ,Vol = Round(Vol, 4)
         ,VolLin = Round(VolLin, 4)
@@ -670,7 +706,8 @@ def output():
         ,PrinComp = Round(PrinComp, 4)
         ,KErr = Round(KErr, 4)
         ,u = u
-        ,Prax = Round(Prax, 4)
+        ,MedianPrinAxCryst = Round(MedianPrinAxCryst, 4)
+        ,PrinAxCryst = Round(PrinAxCryst, 4)
         ,BMCoeffHeadings = BMCoeffHeadings
         ,BMOrder = BMOrder
         ,B0 = Round(B0, 4)
@@ -683,7 +720,7 @@ def output():
         ,KHeadings = KHeadings
         ,K = Round(K, 4) 
         ,TPx = TPx
-        ,CalStrain = Round(CalStrain*1e2, 4)
+        ,DiagStrain = Round(DiagStrain*percent, 4)
         ,XCal = Round(XCal, 4)
         ,VolPressHeadings = VolPressHeadings
         ,Vol = Round(Vol, 4)
@@ -704,12 +741,13 @@ def output():
         ,PlotIndicJSON = IndicatrixJSON
         ,QPrimeHeadings = QPrimeHeadings
         ,data = data
-        ,Prax = Round(Prax, 4)
+        ,MedianPrinAxCryst = Round(MedianPrinAxCryst, 4)
+        ,PrinAxCryst = Round(PrinAxCryst, 4)
         ,TPx = TPx
         ,Axes = Axes
         ,PrinComp = np.round(PrinComp, 4)
         ,StrainHeadings = StrainHeadings
-        ,CalStrain = np.round(CalStrain*1e2, 4)
+        ,DiagStrain = np.round(DiagStrain*percent, 4)
         ,XCal = Round(XCal, 4)
         ,DerHeadings = DerHeadings
         ,Vol = Round(Vol, 4)
