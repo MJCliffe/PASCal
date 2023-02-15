@@ -1,193 +1,214 @@
 <!doctype html>
+
 <head>
   <title>PASCal Beta Temperature Output</title>
   <link class="image" rel="shortcut icon" href="{{ url_for('static', filename='PASCal_icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
 <html>
-   <body>
-     <main>
-        <div class="page">
-          <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
 
-          <h2>Output</h2>           
-          <table class="table">
-            <tr class="table_header">
-              <th class = "table_Blank" colspan="3"></th>
-              <th class = "table_Direction" colspan="3"><div class="tooltip">Direction
-                <span class="tooltiptext">Projections of X<sub>n</sub> on the unit cell axes</span></div></th>
-            </tr>
-            <tr class="table_header">
-              <th>Axes</th>
-              <th>
-                <div class="tooltip">
-                  &#945; (MK<sup>-1</sup>)<span class="tooltiptext">linear coefficient of thermal expansion</span>
-                </div>
-              </th>
-              <th>
-                <div class="tooltip">
-                  &#963;&#945;(MK<sup>-1</sup>)<span class="tooltiptext">error in linear coefficient of thermal expansion</span>
-                </div>
-              </th>
-              <th>a</th>
-              <th>b</th>
-              <th>c</th>
-            </tr>
+<body>
+  <main>
+    <div class="page">
+      <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
+        class="image">
+      {{ warning }}
+      <h2>Output</h2>
 
-            {% for i in range(3) %}
-            <tr class="table_row">
-              <td >{{ Axes[i] }}</td>
-              <td >{{ PrinComp[i] }}</td>
-              <td >{{ CalAlphaErr[i] }}</td>
-              <td >{{ MedianPrinAxCryst[i][0] }}</td>
-              <td >{{ MedianPrinAxCryst[i][1] }}</td>
-              <td >{{ MedianPrinAxCryst[i][2] }}</td>
-            </tr>
-            {% endfor %}
-            <tr>
-              <td >{{ Axes[3] }}</td>
-              <td >{{ VolThermCom }}</td>
-              <td >{{ VolThermComErr }}</td>
-            </tr>
-          </table>
+      <table class="table">
+        <tr class="table_header">
+          <th class="table_Blank" colspan="3"></th>
+          <th class="table_Direction" colspan="3">
+            <div class="tooltip">Direction
+              <span class="tooltiptext">Projections of X<sub>n</sub> on the unit cell axes</span>
+            </div>
+          </th>
+        </tr>
+        <tr class="table_header">
+          <th>Axes</th>
+          <th>
+            <div class="tooltip">
+              &#945; (MK<sup>-1</sup>)<span class="tooltiptext">linear coefficient of thermal expansion</span>
+            </div>
+          </th>
+          <th>
+            <div class="tooltip">
+              &#963;&#945;(MK<sup>-1</sup>)<span class="tooltiptext">error in linear coefficient of thermal
+                expansion</span>
+            </div>
+          </th>
+          <th>a</th>
+          <th>b</th>
+          <th>c</th>
+        </tr>
 
-          <h2>Fits to variable-temperature lattice parameter data</h2>           
-            <div id='PlotStrain' class='chart'></div>
-            <div id='PlotVolume' class='chart'></div>
+        {% for i in range(3) %}
+        <tr class="table_row">
+          <td>{{ Axes[i] }}</td>
+          <td>{{ PrinComp[i] }}</td>
+          <td>{{ CalAlphaErr[i] }}</td>
+          <td>{{ MedianPrinAxCryst[i][0] }}</td>
+          <td>{{ MedianPrinAxCryst[i][1] }}</td>
+          <td>{{ MedianPrinAxCryst[i][2] }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td>{{ Axes[3] }}</td>
+          <td>{{ VolThermCom }}</td>
+          <td>{{ VolThermComErr }}</td>
+        </tr>
+      </table>
 
-            <h2 class="tooltip">Indicatrix<span class="tooltiptext">Thermal expansivity tensor represented as an expansivity indicatrix. The expansivity indicatrix is a smoothly varying surface centred at the unit-cell origin, where the distance between the surface and the origin in a given direction r is equal to the magnitude of &#945; in that direction (taking negative values as appropriate)</span></h2>      
-            <div id='PlotIndic' class='chart'></div>
+      <h2>Fits to variable-temperature lattice parameter data</h2>
+      <div id='PlotStrain' class='chart'></div>
+      <div id='PlotVolume' class='chart'></div>
 
-            <h2>% change in length</h2>
+      <h2 class="tooltip">Indicatrix<span class="tooltiptext">Thermal expansivity tensor represented as an expansivity
+          indicatrix. The expansivity indicatrix is a smoothly varying surface centred at the unit-cell origin, where
+          the distance between the surface and the origin in a given direction r is equal to the magnitude of &#945; in
+          that direction (taking negative values as appropriate)</span></h2>
+      <div id='PlotIndic' class='chart'></div>
 
-            <table>
-              <tr class="table_header">
-                <th >T (K)</th>
-                <th >X<sub>1</sub> (%)</th>
-                <th >X<sub>2</sub> (%)</th>
-                <th >X<sub>3</sub> (%)</th>
-                <th ><div class="tooltip">X<sub>1,calc</sub> (%)<span
-                class="tooltiptext">change in length calculated from linear fit</span>
-                </div></th>
-                <th ><div class="tooltip">X<sub>2,calc</sub> (%)<span
-                class="tooltiptext">change in length calculated from linear fit</span>
-                </div></th>
-                <th ><div class="tooltip">X<sub>3,calc</sub> (%)<span
-                class="tooltiptext">change in length calculated from linear fit</span>
-                </div></th>
-              </tr>
-              {% for i in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[i] }}</td>
-                {% for j in range(3) %}
-                <td >{{ DiagStrain[i][j] }}</td>
-                {% endfor %}
-                {% for n in range(3) %}
-                <td >{{ XCal[n][i] }}</td>
-                {% endfor %}
-              </tr>
-              {% endfor %}
-            </table>
+      <h2>% change in length</h2>
 
-            <h2>Volume</h2>
-            <table>
-              <tr class="table_header">
-                <th >T (K)</th>
-                <th >V (&#8491;<sup>3</sup>)</th>
-                <th ><div class="tooltip">V<sub>lin</sub> (&#8491;<sup>3</sup>)<span
-                class="tooltiptext">calculated volume from linear fit</span>
-                </div></th>
-              </tr>
-              {% for i in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[i] }}</td>
-                <td >{{ Vol[i] }}</td>
-                <td >{{ VolLin[i] }}</td>
-              </tr>
-              {% endfor %}
-            </table>
+      <table>
+        <tr class="table_header">
+          <th>T (K)</th>
+          <th>X<sub>1</sub> (%)</th>
+          <th>X<sub>2</sub> (%)</th>
+          <th>X<sub>3</sub> (%)</th>
+          <th>
+            <div class="tooltip">X<sub>1,calc</sub> (%)<span class="tooltiptext">change in length calculated from linear
+                fit</span>
+            </div>
+          </th>
+          <th>
+            <div class="tooltip">X<sub>2,calc</sub> (%)<span class="tooltiptext">change in length calculated from linear
+                fit</span>
+            </div>
+          </th>
+          <th>
+            <div class="tooltip">X<sub>3,calc</sub> (%)<span class="tooltiptext">change in length calculated from linear
+                fit</span>
+            </div>
+          </th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          {% for j in range(3) %}
+          <td>{{ DiagStrain[i][j] }}</td>
+          {% endfor %}
+          {% for n in range(3) %}
+          <td>{{ XCal[n][i] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
 
-            <h2 class="tooltip">Principal Axes<span
-              class="tooltiptext">Principal axes at each point in crystallographic and orthogonal coordinates.</span></h2>         
-  
-              <table>
-                <tr class="table_header">
-                  <th ></th>                  
-                  <th >X<sub>1</sub> </th>
-                  <th ></th>
-                  <th ></th>                  
-                  <th >X<sub>2</sub></th>
-                  <th ></th>
-                  <th ></th>                  
-                  <th >X<sub>3</sub> </th>
-                  <th ></th>
-                  <th ></th>     
-                </tr>
-                <tr class="table_header">
-                  <th >T (K)</th>                  
-                  <th >a </th>
-                  <th >b </th>
-                  <th >c </th>
-                  <th >a </th>
-                  <th >b </th>
-                  <th >c </th>
-                  <th >a </th>
-                  <th >b </th>
-                  <th >c </th>
-                </tr>
-                {% for n in range(TPx|length) %}
-                <tr>
-                  <td >{{ TPx[n] }}</td> 
-                  {% for i in range(3) %}    
-                  {% for j in range(3) %}                                   
-                  <td >{{ PrinAxCryst[n][i][j]}}</td>                  
-                  {% endfor %}               
-                  {% endfor %}
-                </tr>
-                {% endfor %}
-  
-              </table>
+      <h2>Volume</h2>
+      <table>
+        <tr class="table_header">
+          <th>T (K)</th>
+          <th>V (&#8491;<sup>3</sup>)</th>
+          <th>
+            <div class="tooltip">V<sub>lin</sub> (&#8491;<sup>3</sup>)<span class="tooltiptext">calculated volume from
+                linear fit</span>
+            </div>
+          </th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          <td>{{ Vol[i] }}</td>
+          <td>{{ VolLin[i] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <h2 class="tooltip">Principal Axes<span class="tooltiptext">Principal axes at each point in crystallographic and
+          orthogonal coordinates.</span></h2>
+
+      <table>
+        <tr class="table_header">
+          <th></th>
+          <th>X<sub>1</sub> </th>
+          <th></th>
+          <th></th>
+          <th>X<sub>2</sub></th>
+          <th></th>
+          <th></th>
+          <th>X<sub>3</sub> </th>
+          <th></th>
+          <th></th>
+        </tr>
+        <tr class="table_header">
+          <th>T (K)</th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+        </tr>
+        {% for n in range(1,TPx|length) %}
+        <tr>
+          <td>{{ TPx[n] }}</td>
+          {% for i in range(3) %}
+          {% for j in range(3) %}
+          <td>{{ PrinAxCryst[n][i][j]}}</td>
+          {% endfor %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+
+      </table>
 
 
-           <h2 class="tooltip">Input<span
-            class="tooltiptext">Input as interpreted by PASCal.</span></h2>         
+      <h2 class="tooltip">Input<span class="tooltiptext">Input as interpreted by PASCal.</span></h2>
 
-            <table>
-              <tr class="table_header">
-                <th >T (K)</th>
-                <th >&#963;T (K)</th>
-                <th >a (&#8491;)</th>
-                <th >b (&#8491;)</th>
-                <th >c (&#8491;)</th>
-                <th >&#945; (º)</th>
-                <th >&#946; (º)</th>
-                <th >&#947; (º)</th>
-              </tr>
-              {% for i in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[i] }}</td>
-                <td >{{ TPxError[i] }}</td>
-                <td >{{ Latt[i][0] }}</td>
-                <td >{{ Latt[i][1] }}</td>
-                <td >{{ Latt[i][2] }}</td>
-                <td >{{ Latt[i][3] }}</td>
-                <td >{{ Latt[i][4] }}</td>
-                <td >{{ Latt[i][5] }}</td>
-              </tr>
-              {% endfor %}
+      <table>
+        <tr class="table_header">
+          <th>T (K)</th>
+          <th>&#963;T (K)</th>
+          <th>a (&#8491;)</th>
+          <th>b (&#8491;)</th>
+          <th>c (&#8491;)</th>
+          <th>&#945; (º)</th>
+          <th>&#946; (º)</th>
+          <th>&#947; (º)</th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          <td>{{ TPxError[i] }}</td>
+          <td>{{ Latt[i][0] }}</td>
+          <td>{{ Latt[i][1] }}</td>
+          <td>{{ Latt[i][2] }}</td>
+          <td>{{ Latt[i][3] }}</td>
+          <td>{{ Latt[i][4] }}</td>
+          <td>{{ Latt[i][5] }}</td>
+        </tr>
+        {% endfor %}
 
-            </table>
-            <div class="info"><a class="link" href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">Return to input</a></div>
-     </main>
-   </body>
+      </table>
+      <div class="info"><a class="link" href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">Return
+          to input</a></div>
+  </main>
+</body>
 
-   <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
-   <script type='text/javascript'>
-     var PlotIndic = {{PlotIndicJSON | safe}};
-     var PlotVolume = {{PlotVolumeJSON | safe}};
-     var PlotStrain = {{PlotStrainJSON | safe}};
-     Plotly.plot('PlotVolume',PlotVolume,{responsive: true});
-     Plotly.plot('PlotStrain',PlotStrain,{responsive: true});
-     Plotly.plot('PlotIndic',PlotIndic,{responsive: true});
-   </script>
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var PlotVolume = {{ PlotVolumeJSON | safe}};
+  var PlotIndic = {{ PlotIndicJSON | safe}};
+  var PlotStrain = {{ PlotStrainJSON | safe}};
+
+  Plotly.plot('PlotVolume', PlotVolume["data"], PlotVolume["layout"], {{ config | safe }});
+  Plotly.plot('PlotStrain', PlotStrain["data"], PlotStrain["layout"], {{ config | safe }});
+  Plotly.plot('PlotIndic', PlotIndic["data"], PlotIndic["layout"], {{ config | safe }});
+</script>
+
 </html>

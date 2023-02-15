@@ -1,211 +1,235 @@
 <!doctype html>
+
 <head>
   <title>PASCal Beta Electrochemical Output</title>
   <link class="image" rel="shortcut icon" href="{{ url_for('static', filename='PASCal_icon.png') }}">
   <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
 <html>
-   <body>
-     <main>
-        <div class="page">
-          <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
 
-          <h2>Output</h2>
-          <table>
-            <tr class="table_header">
-              <th class = "table_Blank" colspan="2"></th>
-              <th class = "table_Direction" colspan="3"><div class="tooltip">Direction
-                <span class="tooltiptext">Projections of X<sub>n</sub> on the unit cell axes</span></div></th>
-            </tr>
-            <tr class="table_header">
-              <th >Axes</th>
-              <th ><div class="tooltip">q' (%/KAhg<sup>-1</sup>)<span
-              class="tooltiptext">median charge-derivative of strain (derived from Chebyshev fits)</span>
-              </div></th>
-              <th >a </th>                
-              <th >b </th>
-              <th >c </th>
-            </tr>
+<body>
+  <main>
+    <div class="page">
+      <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
+        class="image">
+      {{ warning }}
+      <h2>Output</h2>
+      <table>
+        <tr class="table_header">
+          <th class="table_Blank" colspan="2"></th>
+          <th class="table_Direction" colspan="3">
+            <div class="tooltip">Direction
+              <span class="tooltiptext">Projections of X<sub>n</sub> on the unit cell axes</span>
+            </div>
+          </th>
+        </tr>
+        <tr class="table_header">
+          <th>Axes</th>
+          <th>
+            <div class="tooltip">q' (%/KAhg<sup>-1</sup>)<span class="tooltiptext">median charge-derivative of strain
+                (derived from Chebyshev fits)</span>
+            </div>
+          </th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+        </tr>
 
-            {% for i in range(3) %}
-            <tr>
-              <td >{{ Axes[i] }}</td>
-              <td >{{ PrinComp[i] }}</td>
-              <td >{{ MedianPrinAxCryst[i][0] }}</td>
-              <td >{{ MedianPrinAxCryst[i][1] }}</td>
-              <td >{{ MedianPrinAxCryst[i][2] }}</td>
-            </tr>
-            {% endfor %}
-            <tr>
-              <td >{{ Axes[3] }}</td>
-              <!--<td >{{ VolThermCom }}</td>              -->
-            </tr>            
-          </table>
+        {% for i in range(3) %}
+        <tr>
+          <td>{{ Axes[i] }}</td>
+          <td>{{ PrinComp[i] }}</td>
+          <td>{{ MedianPrinAxCryst[i][0] }}</td>
+          <td>{{ MedianPrinAxCryst[i][1] }}</td>
+          <td>{{ MedianPrinAxCryst[i][2] }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td>{{ Axes[3] }}</td>
+          <!--<td >{{ VolThermCom }}</td>              -->
+        </tr>
+      </table>
 
-          <h2>Fits to in-situ electrochemical lattice parameter data</h2>
+      <h2>Fits to in-situ electrochemical lattice parameter data</h2>
 
-          <div id='PlotStrain' class='chart'></div>
-          <div id='PlotDeriv' class='chart'></div>
-          <div id='PlotVolume' class='chart'></div>
-          <div id='PlotResidual' class='chart'></div>            
-          <div class ="info">*Fit shown using the best fitting polynomial</div>
-          
-          <h2 class="tooltip">Indicatrix plot
-            <span class="tooltiptext">The charge-derivative strain tensor is represented as an indicatrix. The indicatrix is a smoothly varying surface centred at the unit-cell origin, where the distance between the surface and the origin in a given direction r is equal to the magnitude of median derivatives of the Chebyshev series from fitting the cumulative capacity and % change in length data in that direction (taking negative values as appropriate)</span>
-          </h2>
-          <div id='Indic' class='chart'></div>
+      <div id='PlotStrain' class='chart'></div>
+      <div id='PlotDeriv' class='chart'></div>
+      <div id='PlotVolume' class='chart'></div>
+      <div id='PlotResidual' class='chart'></div>
+      <div class="info">*Fit shown using the best fitting polynomial</div>
 
-          <h2>% change in length</h2>
-          <table>
-            <tr class="table_header">
-              <th >q (mAhg<sup>-1</sup>)</th>
-              <th >X<sub>1</sub> (%)</th>
-              <th >X<sub>2</sub> (%)</th>
-              <th >X<sub>3</sub> (%)</th>
-              <th ><div class="tooltip">X<sub>1,calc</sub> (%)<span
-              class="tooltiptext">change in length calculated from Chebyshev polynomials fit</span>
-              </div></th>
-              <th ><div class="tooltip">X<sub>2,calc</sub> (%)<span
-              class="tooltiptext">change in length calculated from Chebyshev polynomials fit</span>
-              </div></th>
-              <th ><div class="tooltip">X<sub>3,calc</sub> (%)<span
-              class="tooltiptext">change in length calculated from Chebyshev polynomials fit</span>
-              </div></th>
+      <h2 class="tooltip">Indicatrix plot
+        <span class="tooltiptext">The charge-derivative strain tensor is represented as an indicatrix. The indicatrix is
+          a smoothly varying surface centred at the unit-cell origin, where the distance between the surface and the
+          origin in a given direction r is equal to the magnitude of median derivatives of the Chebyshev series from
+          fitting the cumulative capacity and % change in length data in that direction (taking negative values as
+          appropriate)</span>
+      </h2>
 
-            </tr>
-            {% for i in range(TPx|length) %}
-            <tr>
-              <td >{{ TPx[i] }}</td>
-              {% for j in range(3) %}
-              <td >{{ DiagStrain[i][j] }}</td>
-              {% endfor %}
-              {% for n in range(3) %}
-              <td >{{ XCal[n][i] }}</td>
-              {% endfor %}
-            </tr>
-            {% endfor %}
-          </table>
+      <div id='PlotIndic' class='chart'></div>
 
-          <h2 class="tooltip">Principal Axes<span
-            class="tooltiptext">Principal axes at each point in crystallographic and orthogonal coordinates.</span></h2>         
+      <h2>% change in length</h2>
+      <table>
+        <tr class="table_header">
+          <th>q (mAhg<sup>-1</sup>)</th>
+          <th>X<sub>1</sub> (%)</th>
+          <th>X<sub>2</sub> (%)</th>
+          <th>X<sub>3</sub> (%)</th>
+          <th>
+            <div class="tooltip">X<sub>1,calc</sub> (%)<span class="tooltiptext">change in length calculated from
+                Chebyshev polynomials fit</span>
+            </div>
+          </th>
+          <th>
+            <div class="tooltip">X<sub>2,calc</sub> (%)<span class="tooltiptext">change in length calculated from
+                Chebyshev polynomials fit</span>
+            </div>
+          </th>
+          <th>
+            <div class="tooltip">X<sub>3,calc</sub> (%)<span class="tooltiptext">change in length calculated from
+                Chebyshev polynomials fit</span>
+            </div>
+          </th>
 
-            <table>
-              <tr class="table_header">
-                <th ></th>                  
-                <th >X<sub>1</sub> </th>
-                <th ></th>
-                <th > </th>                  
-                <th >X<sub>2</sub> </th>
-                <th > </th>
-                <th > </th>                  
-                <th >X<sub>3</sub>> </th>
-                <th ></th>
-                <th > </th>  
-              </tr>
-              <tr class="table_header">
-                <th >T (K)</th>                  
-                <th >a </th>
-                <th >b </th>
-                <th >c </th>
-                <th >a </th>
-                <th >b </th>
-                <th >c </th>
-                <th >a </th>
-                <th >b </th>
-                <th >c </th>
-              </tr>
-              {% for n in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[n] }}</td> 
-                {% for i in range(3) %}    
-                {% for j in range(3) %}                                   
-                <td >{{ PrinAxCryst[n][i][j]}}</td>                  
-                {% endfor %}               
-                {% endfor %}
-              </tr>
-              {% endfor %}
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          {% for j in range(3) %}
+          <td>{{ DiagStrain[i][j] }}</td>
+          {% endfor %}
+          {% for n in range(3) %}
+          <td>{{ XCal[n][i] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
 
-            </table>
+      <h2 class="tooltip">Principal Axes<span class="tooltiptext">Principal axes at each point in crystallographic and
+          orthogonal coordinates.</span></h2>
 
-          <h2> Charge-derivative of the strain (using Chebyshev fit) </h2>
-          <table>
-            <tr class="table_header">
-              <th >q (mAhg<sup>-1</sup>)</th>
-              <th >q<sub>1</sub>' (%/KAhg<sup>-1</sup>)</th>
-              <th >q<sub>2</sub>' (%/KAhg<sup>-1</sup>)</th>
-              <th >q<sub>3</sub>' (%/KAhg<sup>-1</sup>)</th>
-            </tr>
-            {% for i in range(TPx|length) %}
-            <tr>
-              <td >{{ TPx[i] }}</td>
-              <td >{{ Deriv[0][i] }}</td>
-              <td >{{ Deriv[1][i] }}</td>
-              <td >{{ Deriv[2][i] }}</td>
-            </tr>
-            {% endfor %}
-          </table>
-          
-            <h2>Volume</h2>
-            <table>
-              <tr class="table_header">
-                <th >q (mAhg<sup>-1</sup>)</th>
-                <th >V (&#8491;<sup>3</sup>)</th>
-                <th ><div class="tooltip">V<sub>cheb</sub> (&#8491;<sup>3</sup>)<span
-                class="tooltiptext">calculated volume from Chebyshev polynomials fit</span>
-                </div></th>
-              </tr>
-              {% for i in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[i] }}</td>
-                <td >{{ Vol[i] }}</td>
-                <td >{{ VolCheb[i] }}</td>
-              </tr>
-              {% endfor %}
-            </table>
+      <table>
+        <tr class="table_header">
+          <th></th>
+          <th>X<sub>1</sub> </th>
+          <th></th>
+          <th> </th>
+          <th>X<sub>2</sub> </th>
+          <th> </th>
+          <th> </th>
+          <th>X<sub>3</sub> </th>
+          <th></th>
+          <th> </th>
+        </tr>
+        <tr class="table_header">
+          <th>T (K)</th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+          <th>a </th>
+          <th>b </th>
+          <th>c </th>
+        </tr>
+        {% for n in range(1,TPx|length) %}
+        <tr>
+          <td>{{ TPx[n] }}</td>
+          {% for i in range(3) %}
+          {% for j in range(3) %}
+          <td>{{ PrinAxCryst[n][i][j]}}</td>
+          {% endfor %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
 
-            <h2 class="tooltip">Input<span class="tooltiptext">Input as interpreted by PASCal.</span>
-            </h2>
-            <table>
-              <tr class="table_header">
-                <th >q (mAhg<sup>-1</sup>)</th>
-                <th >&#963;q (mAhg<sup>-1</sup>)</th>
-                <th >a (&#8491;)</th>
-                <th >b (&#8491;)</th>
-                <th >c (&#8491;)</th>
-                <th >&#945; (º)</th>
-                <th >&#946; (º)</th>
-                <th >&#947; (º)</th>
-              </tr>
-              {% for i in range(TPx|length) %}
-              <tr>
-                <td >{{ TPx[i] }}</td>
-                <td >{{ TPxError[i] }}</td>
-                <td >{{ Latt[i][0] }}</td>
-                <td >{{ Latt[i][1] }}</td>
-                <td >{{ Latt[i][2] }}</td>
-                <td >{{ Latt[i][3] }}</td>
-                <td >{{ Latt[i][4] }}</td>
-                <td >{{ Latt[i][5] }}</td>
-              </tr>
-              {% endfor %}
-            </table>
+      </table>
 
-            <div class = "info"><a class="link" href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">To input</a></div>
-          </div>
-     </main>
-   </body>
+      <h2> Charge-derivative of the strain (using Chebyshev fit) </h2>
+      <table>
+        <tr class="table_header">
+          <th>q (mAhg<sup>-1</sup>)</th>
+          <th>q<sub>1</sub>' (%/KAhg<sup>-1</sup>)</th>
+          <th>q<sub>2</sub>' (%/KAhg<sup>-1</sup>)</th>
+          <th>q<sub>3</sub>' (%/KAhg<sup>-1</sup>)</th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          <td>{{ Deriv[0][i] }}</td>
+          <td>{{ Deriv[1][i] }}</td>
+          <td>{{ Deriv[2][i] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
 
-   <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
-   <script type='text/javascript'>
-     var PlotIndic = {{PlotIndicJSON | safe}};
-     var PlotVolume = {{PlotVolumeJSON | safe}};
-     var PlotStrain = {{PlotStrainJSON | safe}};
-     var PlotDeriv = {{PlotDerivJSON | safe}};
-     var PlotResidual = {{PlotResidualJSON | safe}};
-     Plotly.plot('PlotVolume',PlotVolume,{responsive: true});
-     Plotly.plot('PlotStrain',PlotStrain,{responsive: true});
-     Plotly.plot('PlotDeriv',PlotDeriv,{responsive: true});
-     Plotly.plot('PlotResidual',PlotResidual,{responsive: true});
-     Plotly.plot('Indic',PlotIndic,{responsive: true});
-   </script>
+      <h2>Volume</h2>
+      <table>
+        <tr class="table_header">
+          <th>q (mAhg<sup>-1</sup>)</th>
+          <th>V (&#8491;<sup>3</sup>)</th>
+          <th>
+            <div class="tooltip">V<sub>cheb</sub> (&#8491;<sup>3</sup>)<span class="tooltiptext">calculated volume from
+                Chebyshev polynomials fit</span>
+            </div>
+          </th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          <td>{{ Vol[i] }}</td>
+          <td>{{ VolCheb[i] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <h2 class="tooltip">Input<span class="tooltiptext">Input as interpreted by PASCal.</span>
+      </h2>
+      <table>
+        <tr class="table_header">
+          <th>q (mAhg<sup>-1</sup>)</th>
+          <th>&#963;q (mAhg<sup>-1</sup>)</th>
+          <th>a (&#8491;)</th>
+          <th>b (&#8491;)</th>
+          <th>c (&#8491;)</th>
+          <th>&#945; (º)</th>
+          <th>&#946; (º)</th>
+          <th>&#947; (º)</th>
+        </tr>
+        {% for i in range(TPx|length) %}
+        <tr>
+          <td>{{ TPx[i] }}</td>
+          <td>{{ TPxError[i] }}</td>
+          <td>{{ Latt[i][0] }}</td>
+          <td>{{ Latt[i][1] }}</td>
+          <td>{{ Latt[i][2] }}</td>
+          <td>{{ Latt[i][3] }}</td>
+          <td>{{ Latt[i][4] }}</td>
+          <td>{{ Latt[i][5] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <div class="info"><a class="link" href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4 gap-3">To
+          input</a></div>
+    </div>
+  </main>
+</body>
+
+<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+<script type='text/javascript'>
+  var PlotIndic = {{ PlotIndicJSON | safe}};
+  var PlotVolume = {{ PlotVolumeJSON | safe}};
+  var PlotStrain = {{ PlotStrainJSON | safe}};
+  var PlotDeriv = {{ PlotDerivJSON | safe}};
+  var PlotResidual = {{ PlotResidualJSON | safe}};
+
+  Plotly.plot('PlotVolume', PlotVolume["data"], PlotVolume["layout"], {{ config | safe }});
+  Plotly.plot('PlotStrain', PlotStrain["data"], PlotStrain["layout"], {{ config | safe }});
+  Plotly.plot('PlotIndic', PlotIndic["data"], PlotIndic["layout"], {{ config | safe }});
+  Plotly.plot('PlotDeriv', PlotDeriv["data"], PlotDeriv["layout"], {{ config | safe }});
+  Plotly.plot('PlotResidual', PlotResidual["data"], PlotResidual["layout"], {{ config | safe }});
+</script>
+
 </html>
