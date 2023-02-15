@@ -9,11 +9,9 @@ A paper summarising the original motivation and theory behind PASCal is publishe
 PASCal takes experimentally determined lattice parameters measured as a function of a parameter (temperature, pressure or charge), calculates the strain matrix, diagonalises this matrix to find the principal strains, and then carries out fits to simple functions to get summary metrics. Paste your values in, click calculate and see the results! There are helpful tips on hover, but more detailed information is below.
 
 # Input 
-Data should be input as plain text, with eight values per row, the control parameter $X$, its error $\sigma(X)$ and the lattice parameters (in $\mathrm{\AA}$ and $^\circ$):
+Data should be input as plain text, with eight values per row, the control parameter $X$, its error $\sigma(X)$ and the lattice parameters (in Å and $^\circ$): X $\sigma (X)$ $a$ $b$ $c$ $\alpha$ $\beta$ $\gamma$. 
 
-` X $\sigma (X)$ $a$ $b$ $c$ $\alpha$ $\beta$ $\gamma$ `. 
-
-Lines beginning with # are comments and ignored:
+Lines beginning with # are comments and ignored: 
 `#This line is metadata`.
 
 There are a number of other options: 
