@@ -4,7 +4,6 @@ import numpy as np
 def Round(var, dec):
     # Rounding the number to desired decimal places
     # round() is more accurate at rounding float numbers than np.round()
-    # NewVar = np.zeros((var.shape[0], var.shape[1]))
     if var.ndim == 1:
         for i in range(var.shape[0]):
             var[i] = round(var[i], dec)
@@ -39,18 +38,11 @@ def Orthomat(Latt):
     orth[:, 2, 1] = -1 * np.cos(alpha) / (Latt[:, 2] * np.sin(alpha))
     orth[:, 2, 2] = 1 / Latt[:, 2]
     return orth
-    # m11 = 1/(Latt[0]*np.sin(beta)*np.sin(gaS))
-    # m21 = np.cos(gaS)/(Latt[1]*np.sin(alpha)*np.sin(gaS))
-    # m22 = 1/(Latt[1]*np.sin(alpha))
-    # m31 = (np.cos(alpha)*np.cos(gaS)/np.sin(alpha)+np.cos(beta)/np.sin(beta))/(-1*Latt[2]*np.sin(gaS))
-    # m32 = -1*np.cos(alpha)/(Latt[2]*np.sin(alpha))
-    # m33 = 1/Latt[2]
-    # return np.array([[m11, 0, 0], [m21, m22, 0], [m31, m32, m33]])
 
 
 def CellVol(LattPam):
     # Calculate the unit-cell volume
-    # Lattice parameters a b c al be ga at the median point  (Angstrom, degrees)
+    # Lattice parameters a b c al be ga (Angstrom, degrees)
     vol = np.zeros((LattPam.shape[0]))
     for i in range(0, LattPam.shape[0]):
         Latt = LattPam[i]
@@ -80,7 +72,7 @@ def EmpEq(TP, Epsilon0, lambdaP, Pc, Nu):
     # Epsilon0: strain at critical pressure
     # lambdaP: compressibility (GPa^-nu)
     # Pc: critical pressure (GPa)
-    # Nu: rate of softening 0.5
+    # Nu: rate of stiffening 0.5
     return Epsilon0 + (lambdaP * ((TP - Pc) ** Nu))
 
 
@@ -167,9 +159,7 @@ def WrapperThirdBMPc(InpPc):
 def NormCRAX(CalCrax, PrinComp):
     # Normalise the crystallographic axes for the indicatrix plot
     # CalCrax: calculated crystallogrphic axes
-    # PrinComp: 3 principal components which are
-    # coefficient of thermal expansion (MK^-1) or
-    # median compressibilities (TPa^-1)
+    # PrinComp: eigenvalues
     NormCrax = np.zeros((3, 3))
     maxalpha = np.abs(max(PrinComp[0], PrinComp[1], PrinComp[2]))
     lens = np.zeros(3)
@@ -186,10 +176,8 @@ def NormCRAX(CalCrax, PrinComp):
 
 
 def Indicatrix(PrinComp):
-    # Indicatrix plot for coefficient of thermal expansion (MK^-1) or median compressibilities (TPa^-1)
-    # PrinComp: 3 principal components which are
-    # coefficient of thermal expansion (MK^-1) or
-    # median compressibilities (TPa^-1)
+    # Indicatrix plot
+    # PrinComp: Eigenvalues
     theta, phi = np.linspace(0, np.pi, 100), np.linspace(0, 2 * np.pi, 2 * 100)
     THETA, PHI = np.meshgrid(theta, phi)
     maxIn = np.amax(np.abs(PrinComp))
