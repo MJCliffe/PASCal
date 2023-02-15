@@ -1,6 +1,6 @@
 # PASCal V2
 
-PASCal is a webapp for 
+PASCal is a webapp for
 # PASCal
 
 Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data. It is written entirely in Python, using plotly to visualise the data, and as a web tool the code is designed to be used online, though it can be used offline with a local flask instance or by adapting the code for your own applications. The web tool is available at https://pascal-notts.azurewebsites.net, the code at https://github.com/MJCliffe/PASCal.
