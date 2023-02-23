@@ -2,7 +2,7 @@
 
 Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data. It is written entirely in Python, using plotly to visualise the data, and as a web tool the code is designed to be used online, though it can be used offline with a local flask instance or by adapting the code for your own applications. The web tool is available at https://pascal-notts.azurewebsites.net, the code at https://github.com/MJCliffe/PASCal.
 
-A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)). Please cite this if you use PASCal in a publication. This publication was produced for a previous version of PASCal and so description of the software itself is out of date. PASCal is designed might not be the most appropriate method for full analysis of your data, so please read the [technical limitations] section if you have particular needs.
+A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)). Please cite this if you use PASCal in a publication. This publication was produced for a previous version of PASCal and so description of the software itself is out of date. PASCal is designed might not be the most appropriate method for full analysis of your data, so please read the sections below on [errors](#errors), [fitting](#fitting) and [strains](#strain-calculation) if you have particular needs.
 
 # Quick start
 
@@ -51,7 +51,7 @@ It is possible if you have the magnitudes of the errors on your lattice paramete
 In PASCal, linear fits use White’s heteroscedascity consistent error estimates and non-linear fits use the residuals to calculate the error estimates.
 
 # Fitting
-PASCal as an automated fitting tool cannot guarantee always finding the best fit and it is worth considering whether another [software package](#other-useful-software)to carry out these kind of calculation if they wish to examine this data more finely. There are some specific issues that users should consider, especially for high pressure data sets:
+PASCal as an automated fitting tool cannot guarantee always finding the best fit and it is worth considering whether another [software package](#other-useful-software) to carry out these kind of calculation if they wish to examine this data more finely. There are some specific issues that users should consider, especially for high pressure data sets:
 
 - PASCal does not use cell-parameter or volume errors in fitting or strain calculation, which can skew results. The contribution of volume errors to final errors is discussed in Angel (Reviews in Mineralogy and Geochemistry, Vol. 41, High-Temperature and High Pressure Crystal Chemistry 2000).
 
@@ -62,6 +62,12 @@ As different equations of state are used for the principal axis and volume fits,
 
 # Strain calculation
 PASCal calculates finite Lagrangian strains by default. Options to use finite and/or Lagrangian strains are provided. PASCal also uses a numerical approach that means the strains calculated are effectively averages of both direction and magnitude. It assigns the strain to the axes by comparing the eigenvectors to the first data point, however this approach can fail where there is significant eigenvector rotation or very noisy data. Fitting of the calculated strains outside of PASCal and manually assigning the strains to the appropriate axes is currently the best approach for these kinds of systems. The directions of the principal axes are taken, like the expansivities from the median data point.
+
+# Offline Installation
+PASCal can be also run offline using a browser as a GUI. This requires NumPy, Plotly and Flask. Full requirements (with versions) available in `requirements.txt`. Once the code is downloaded run the program using `flask run` in the folder containing `app.py`. The software has been designed to run as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
+
+# Issues and Feature Requests
+If you find any bugs in the code, errors in the documentation or have any feature requests, please do [contribute]](./CONTRIBUTING.md) via the GitHub Repository.
 
 # Other Useful Software
 There are a wide range of other useful programs available:
