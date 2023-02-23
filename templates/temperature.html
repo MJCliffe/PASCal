@@ -2,7 +2,7 @@
 
 <head>
   <title>PASCal Beta Temperature Output</title>
-  <link class="image" rel="shortcut icon" href="{{ url_for('static', filename='PASCal_icon.png') }}">
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='PASCal_icon.png') }}" />
   <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
 <html>
@@ -12,6 +12,7 @@
     <div class="page">
       <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
         class="image">
+      <h2>WARNING</h2> 
       {{ warning }}
       <h2>Output</h2>
 
@@ -54,8 +55,8 @@
         {% endfor %}
         <tr>
           <td>{{ Axes[3] }}</td>
-          <td>{{ VolThermCom }}</td>
-          <td>{{ VolThermComErr }}</td>
+          <td>{{ VolCoef }}</td>
+          <td>{{ VolCoefErr }}</td>
         </tr>
       </table>
 

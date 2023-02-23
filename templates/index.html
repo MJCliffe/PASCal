@@ -1,7 +1,7 @@
 <!doctype html>
 <head>
     <title>PASCal Beta</title>
-    <link class="image" rel="shortcut icon" href="{{ url_for('static', filename='PASCal_icon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='PASCal_icon.png') }}" />
     <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
 <html>
@@ -11,8 +11,7 @@
           <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
           <h1 class="big_title">A web tool for Principal Axis Strain Calculations</h1>
           <div class = "info">
-            <a class="link" href="{{ url_for('static', filename='PASCalhelp.pdf') }}">Quick Guide</a>
-            <a class="link" href="{{ url_for('static', filename='PASCalCaveats.pdf') }}">Technical information and caveats</a>
+            <a class="link" href="{{ url_for('static', filename='GITHUBLINK') }}">Guide</a>            
             <br />
             Hints available on mouseover.
           </div>
@@ -25,7 +24,7 @@
                 <input type="radio" id="press" name="DataType" value="Pressure" required="required">
                 <label for="press">Pressure (GPa)</label>
                 <input type="radio" id="elec" name="DataType" value="Electrochemical" required="required">
-                <label for="elec">Electrochemical (mAH/g)</label>
+                <label for="elec">Electrochemical (mAh/g)</label>
               </div>
 
               <div class="option">
@@ -43,11 +42,11 @@
 
               <div class="option">
                 <div class="subtitle"><div class="tooltip">Chebyshev polynomial fitting for electrochemical data:
-                  <span class="tooltiptext">Electrochemical data only. Controls the degree of the polynomial used to fit the strain and volume data.</span>
+                  <span class="tooltiptext">Electrochemical data only. Controls the maximum degree of the polynomial used to fit the strain and volume data.</span>
                 </div></div>                  
-                <label for="DegPolyCap"> Degree(s) of polynomial for strain (1-10): </label>
+                <label for="DegPolyCap"> Max degree of polynomial for strain (1-10): </label>
                 <input type="number" id="DegPolyCap" name="DegPolyCap" min="1" max="10" required="required">
-                <label for="DegPolyVol"> Degree(s) of polynomial for volume (1-10): </label>
+                <label for="DegPolyVol"> Max degree of polynomial for volume (1-10): </label>
                 <input type="number" id="DegPolyVol" name="DegPolyVol" min="1" max="10" required="required">
               </div>
 
@@ -56,15 +55,15 @@
                   <span class="tooltiptext">Finite strains are more appropriate for large strains. The derivation of the Birch-Murnaghan EoS uses finite Eulerian strain.</span>
                 </div></div>
                 <div>
-                  <input type="radio" id="eulerian" name="StrainType" value="True" required="required" checked>
+                  <input type="radio" id="eulerian" name="EulerianStrain" value="True" required="required" checked>
                   <label for="eulerian">Eulerian strain</label>
-                  <input type="radio" id="lagrangian" name="StrainType" value="False" required="required" >
+                  <input type="radio" id="lagrangian" name="EulerianStrain" value="False" required="required" >
                   <label for="lagrangian">Lagrangian strain</label>
                 </div> 
                 <div>
-                  <input type="radio" id="finite" name="AdvancedOption" value="True" required="required" checked>
+                  <input type="radio" id="finite" name="finite" value="True" required="required" checked>
                   <label for="finite">Finite strain</label>
-                  <input type="radio" id="infinitesimal" name="AdvancedOption" value="False" required="required">
+                  <input type="radio" id="infinitesimal" name="finite" value="False" required="required">
                   <label for="infinitesimal">Infinitesimal strain</label>
                 </div>
               </div>

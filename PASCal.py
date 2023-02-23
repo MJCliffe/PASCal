@@ -4,6 +4,8 @@ import numpy as np
 def Round(var, dec):
     # Rounding the number to desired decimal places
     # round() is more accurate at rounding float numbers than np.round()
+    if var.ndim == 0:
+        var = round(var, dec)
     if var.ndim == 1:
         for i in range(var.shape[0]):
             var[i] = round(var[i], dec)
@@ -16,6 +18,10 @@ def Round(var, dec):
             for j in range(var.shape[1]):
                 for k in range(var.shape[2]):
                     var[i][j][k] = round(var[i][j][k], dec)
+    if var.ndim < 0:
+        raise TypeError(var, " has incorrect dimensions in rounding")
+    if var.ndim > 3:
+        raise TypeError(var, " has incorrect dimensions in rounding")
     return var
 
 

@@ -35,18 +35,15 @@ def output():
     DataType = request.form.get(
         "DataType"
     )  # strings of 'Temperature' or 'Pressure' or 'Electrochemical'
-    StrainType = request.form.get(
-        "StrainType"
-    )  # true or false (Eulerian or Lagrangian) XXXX no
-    AdvancedOption = request.form.get(
-        "AdvancedOption"
-    )  # true or false (Finite or infinitesimal)
+    EulerianStrain = request.form.get("EulerianStrain")  # if false lagrangian
+    FiniteStrain = request.form.get("Finite")  # true or false (Finite or infinitesimal)
+
     if DataType == "Pressure":
         UsePc = request.form.get(
             "UsePc"
         )  # if critical pressure is used (string, "true")
         if UsePc == "True":
-            InpPc = float(request.form.get("PcVal"))  # critical pressure value
+            PcVal = float(request.form.get("PcVal"))  # critical pressure value
     if DataType == "Electrochemical":
         DegPolyCap = int(
             request.form.get("DegPolyCap")
@@ -63,14 +60,20 @@ def output():
     Latt = (
         []
     )  # lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
+    warning = ""
+
     for line in data.splitlines():
         line = line.strip()
-        if not line.startswith("#"):
+        if not line.startswith("#"):  # ignore comments
             datum = np.fromstring(line, sep=" ")
             if np.shape(datum)[0] == 0:
                 continue
             if np.shape(datum)[0] != 8:
-                print("wrong number of entries in line", datum)
+                warning = (
+                    "Wrong number of data points in this line: "
+                    + str(datum)
+                    + " has been ignored."
+                )
                 continue
             TPx.append(datum[0])
             TPxError.append(datum[1])
@@ -81,24 +84,20 @@ def output():
     Latt = np.stack(Latt)
     Vol = PASCal.CellVol(Latt)  # volumes in (Angstrom^3)
 
-    if StrainType == "True":
-        EulerianStrain = True
-    elif StrainType == "False":
-        EulerianStrain = False
-
-    if AdvancedOption == "True":
-        FiniteStrain = True
-    elif AdvancedOption == "False":
-        FiniteStrain = False
-
-    warning = ""
-
     if len(TPx) < 2:
-        warning = "At least as many data points as parameters are needed for a meaningful fit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+        warning = "At least as many data points as parameters are needed for a fit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
 
     if (len(TPx) < 4) and (DataType != "Temperature"):
-        warning = "At least as many data points as parameters are needed for a meaningful fit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+        warning = "At least as many data points as parameters are needed for afit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
 
+    if DataType == "Pressure":
+        if UsePc == "True":
+            if np.amin(TPx) < PcVal:
+                PcVal = np.amin(TPx)
+                warning = (
+                    "The critical pressure has to be smaller than the lower pressure data point. Critical pressure has been set to the minimum value: "
+                    + str(PcVal)
+                )
     percent = 1e2  # conversions
     TPa = 1e3  # GPa to TPa
     MK = 1e6  # K to MK
@@ -228,8 +227,8 @@ def output():
         VolTempHeadings = [TPxLabel, "V (A^3)", "VLin (A^3)"]
 
         ### unit conversions
-        VolThermCom = VolGrad / Vol[0] * MK
-        VolThermComErr = VolGradErr / Vol[0] * MK
+        VolCoef = VolGrad / Vol[0] * MK
+        VolCoefErr = VolGradErr / Vol[0] * MK
         PrinComp = CalAlpha * MK
 
         ### Strain Plot
@@ -378,8 +377,8 @@ def output():
         K = np.zeros((3, Latt.shape[0]))  # compressibilities TPa-1
         KErr = np.zeros((3, Latt.shape[0]))  # errors in K TPa-1
 
-        VolThermCom = VolGrad / Vol[0] * TPa
-        VolThermComErr = VolGradErr / Vol[0] * TPa
+        VolCoef = VolGrad / Vol[0] * TPa
+        VolCoefErr = VolGradErr / Vol[0] * TPa
 
         ### Bounds for the empirical fit
         EmpBounds = np.array(
@@ -387,10 +386,7 @@ def output():
         )
 
         for i in range(3):
-            print(i)
-            print(EmpBounds)
             InitParams = np.array([CalYInt[i], CalAlpha[i], min(TPx) - 0.001, 0.5])
-            print(InitParams)
             CalEmPopt[i], CalEmPcov[i] = curve_fit(
                 PASCal.EmpEq,
                 TPx,
@@ -460,7 +456,7 @@ def output():
 
         if UsePc == "True":  ## if a critical pressure is USED
             PoptThirdBMPc, PcovThirdBMPc = curve_fit(
-                PASCal.WrapperThirdBMPc(InpPc),
+                PASCal.WrapperThirdBMPc(PcVal),
                 Vol,
                 TPx,
                 p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]),
@@ -497,7 +493,7 @@ def output():
             SigV0 = np.concatenate([SigV0, [SigV0ThirdBMPc]])
             BPrime = np.concatenate([BPrime, [PoptThirdBMPc[2]]])
             SigBPrime.append(PASCal.Round(SigBprimeThirdBMPc, 4))
-            PcCoef = np.concatenate([PcCoef, [InpPc]])
+            PcCoef = np.concatenate([PcCoef, [PcVal]])
 
         ### Compute the pressure from all fits
         CalPress = np.zeros((3, Latt.shape[0]))
@@ -508,7 +504,7 @@ def output():
         )
         if UsePc == "True":  ## if a critical pressure is USED
             PThirdBMPc = PASCal.ThirdBMPc(
-                Vol[:], PoptThirdBMPc[0], PoptThirdBMPc[1], PoptThirdBMPc[2], InpPc
+                Vol[:], PoptThirdBMPc[0], PoptThirdBMPc[1], PoptThirdBMPc[2], PcVal
             )
             CalPress = np.vstack((CalPress, PThirdBMPc))
 
@@ -675,7 +671,7 @@ def output():
                 go.Scatter(
                     name="V<sub>3rd BM with P<sub>c</sub><sub>",
                     x=PASCal.ThirdBMPc(
-                        np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBMPc, InpPc
+                        np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBMPc, PcVal
                     ),
                     y=np.linspace(Vol[0], Vol[-1], num=100),
                     mode="lines",
@@ -797,7 +793,7 @@ def output():
         )  # calc volume from best Cheb fit
         ChebVolObj = np.polynomial.chebyshev.Chebyshev(CoefVolOp)
         VolDer = np.polynomial.chebyshev.chebder(CoefVolOp, m=1, scl=1, axis=0)
-        VolThermCom = np.polynomial.chebyshev.chebval(TPx, VolDer)[u] * kAhg
+        VolCoef = np.polynomial.chebyshev.chebval(TPx, VolDer)[u] * kAhg
 
         ### Strain Plot
         FigStrain = go.Figure()
@@ -1070,8 +1066,6 @@ def output():
                 title=ColourBarTitle,
                 titleside="top",
                 tickmode="array",
-                # tickvals=[maxIn, maxIn*-1], #XXX
-                # ticktext=["positive", "negative"], #XXX
                 ticks="outside",
             ),
         )
@@ -1139,7 +1133,7 @@ def output():
 
     ####
     ## Table labels
-    # Axes = ["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"]
+    # Axes = ["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"] #gets automatically escaped
     Axes = ["X1", "X2", "X3", "V"]
     StrainHeadings = [
         TPxLabel,
@@ -1160,7 +1154,7 @@ def output():
             "responsive": True,
             "toImageButtonOptions": {
                 "format": "png",  # one of png, svg, jpeg, webp
-                "scale": 5,  # Multiply title/legend/axis/canvas sizes by this factor
+                "scale": 5,  # change resolution of image
             },
         }
     )
@@ -1189,8 +1183,8 @@ def output():
             XCal=PASCal.Round(XCal, 4),
             Vol=PASCal.Round(Vol, 4),
             VolLin=PASCal.Round(VolLin, 4),
-            VolThermCom=PASCal.Round(VolThermCom, 4),
-            VolThermComErr=PASCal.Round(VolThermComErr, 4),
+            VolCoef=PASCal.Round(VolCoef, 4),
+            VolCoefErr=PASCal.Round(VolCoefErr, 4),
             TPxError=TPxError,
             Latt=Latt,
         )
@@ -1234,8 +1228,8 @@ def output():
             XCal=PASCal.Round(XCal, 4),
             VolPressHeadings=VolPressHeadings,
             Vol=PASCal.Round(Vol, 4),
-            VolThermCom=PASCal.Round(VolThermCom, 4),
-            VolThermComErr=PASCal.Round(VolThermComErr, 4),
+            VolCoef=PASCal.Round(VolCoef, 4),
+            VolCoefErr=PASCal.Round(VolCoefErr, 4),
             CalPress=PASCal.Round(CalPress, 4),
             UsePc=UsePc,
             TPxError=TPxError,
@@ -1267,7 +1261,7 @@ def output():
             Deriv=PASCal.Round(Deriv, 4),
             VolElecHeadings=VolElecHeadings,
             VolCheb=PASCal.Round(VolCheb, 4),
-            VolThermCom=PASCal.Round(VolThermCom, 4),
+            VolCoef=PASCal.Round(VolCoef, 4),
             InputHeadings=InputHeadings,
             TPxError=TPxError,
             Latt=PASCal.Round(Latt, 4),
