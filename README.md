@@ -67,7 +67,7 @@ PASCal calculates finite Lagrangian strains by default. Options to use finite an
 PASCal can be also run offline using a browser as a GUI. This requires NumPy, Plotly and Flask. Full requirements (with versions) available in `requirements.txt`. Once the code is downloaded run the program using `flask run` in the folder containing `app.py`. The software has been designed to run as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
 
 # Issues and Feature Requests
-If you find any bugs in the code, errors in the documentation or have any feature requests, please do [contribute]](./CONTRIBUTING.md) via the GitHub Repository.
+If you find any bugs in the code, errors in the documentation or have any feature requests, please do [contribute](./CONTRIBUTING.md) via the GitHub Repository.
 
 # Other Useful Software
 There are a wide range of other useful programs available:
@@ -75,5 +75,6 @@ There are a wide range of other useful programs available:
 calculating strains from lattice parameters, but is no longer supported. EOSfit is a powerful tool for  fitting equations of state (principally pressure).
 - STRAIN (https://www.cryst.ehu.es/cryst/strain.html). The Bilbao Crystallographic Server can calculate strain calculations for a single pair of lattice parameters. 
 - ELATE (https://progs.coudert.name/elate). A tool for analysing full elastic constant tensors.
+  
 If you know of any other useful software that should be added to the list or have any other questions,
-please email matthew[dot]cliffe[at]chem[dot]ox[dot]ac[dot]uk
+please email matthew[dot]cliffe[at]nottingham[dot]ac[dot]uk
