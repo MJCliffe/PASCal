@@ -81,7 +81,7 @@ def test_P_sample_data(client, sample_P):
 
     soup = BeautifulSoup(html_response[0])
     tables = soup.find_all("table")
-    assert len(tables) == 6
+    assert len(tables) == 7
 
 
 def test_q_sample_data(client, sample_q):
@@ -104,4 +104,4 @@ def test_q_sample_data(client, sample_q):
 
     soup = BeautifulSoup(html_response[0])
     tables = soup.find_all("table")
-    assert len(tables) == 7
+    assert len(tables) == 6
