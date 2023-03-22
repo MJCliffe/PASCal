@@ -66,6 +66,7 @@ def test_P_sample_data(client, sample_P):
     post_parameters = {
         "DataType": "Pressure",
         "EulerianStrain": "True",
+        "FiniteStrain": "True",
         "DegPolyCap": "",
         "DegPolyVol": "",
         "Pc": "True",
