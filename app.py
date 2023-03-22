@@ -10,7 +10,6 @@ import os
 
 from scipy.optimize import curve_fit
 
-
 app = Flask(__name__)
 
 
@@ -36,7 +35,23 @@ def output():
         "DataType"
     )  # strings of 'Temperature' or 'Pressure' or 'Electrochemical'
     EulerianStrain = request.form.get("EulerianStrain")  # if false lagrangian
-    FiniteStrain = request.form.get("Finite")  # true or false (Finite or infinitesimal)
+
+    if EulerianStrain == "True":
+        EulerianStrain = True
+    elif EulerianStrain == "False":
+        EulerianStrain = False
+    else:
+        print("ERROR Eulerian")
+        raise Exception("Invalid strain type - Eulerian")
+    FiniteStrain = request.form.get("FiniteStrain")  # if false infinitesimal
+
+    if FiniteStrain == "True":
+        FiniteStrain = True
+    elif FiniteStrain == "False":
+        FiniteStrain = False
+    else:
+        print("ERROR Finite")
+        raise Exception("Invalid strain type - Finite")
 
     if DataType == "Pressure":
         UsePc = request.form.get(
@@ -60,7 +75,10 @@ def output():
     Latt = (
         []
     )  # lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
-    warning = ""
+
+    warning = (
+        []
+    )  # This contains any data input errors that can be bypassed without crashing everything
 
     for line in data.splitlines():
         line = line.strip()
@@ -69,10 +87,12 @@ def output():
             if np.shape(datum)[0] == 0:
                 continue
             if np.shape(datum)[0] != 8:
-                warning = (
-                    "Wrong number of data points in this line: "
-                    + str(datum)
-                    + " has been ignored."
+                warning.append(
+                    str(
+                        "Wrong number of data points in line: "
+                        + str(datum)
+                        + ". It has been ignored."
+                    )
                 )
                 continue
             TPx.append(datum[0])
@@ -83,21 +103,38 @@ def output():
     TPxError = np.array(TPxError)
     Latt = np.stack(Latt)
     Vol = PASCal.CellVol(Latt)  # volumes in (Angstrom^3)
-
+    ## Data error handling
     if len(TPx) < 2:
-        warning = "At least as many data points as parameters are needed for a fit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
-
-    if (len(TPx) < 4) and (DataType != "Temperature"):
-        warning = "At least as many data points as parameters are needed for afit to be carried out (i.e. 3 for 3rd order Birch-Murnaghan,4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+        raise Exception("Too few data points")
 
     if DataType == "Pressure":
+        if len(TPx) < 4:
+            warning.append(
+                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+            )
         if UsePc == "True":
             if np.amin(TPx) < PcVal:
                 PcVal = np.amin(TPx)
-                warning = (
-                    "The critical pressure has to be smaller than the lower pressure data point. Critical pressure has been set to the minimum value: "
-                    + str(PcVal)
+                warning.append(
+                    str(
+                        "The critical pressure has to be smaller than the lower pressure data point. Critical pressure has been set to the minimum value: "
+                        + str(PcVal)
+                        + " GPa."
+                    )
                 )
+
+    if DataType == "Electrochemical":
+        if len(TPx) - 2 < DegPolyCap:
+            DegPolyCap = len(TPx) - 2
+            warning.append(
+                "The maximum degree of the Chebyshev strain polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+            )
+        if len(TPx) - 2 < DegPolyVol:
+            DegPolyVol = len(TPx) - 2
+            warning.append(
+                "The maximum degree of the Chebyshev volume polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+            )
+
     percent = 1e2  # conversions
     TPa = 1e3  # GPa to TPa
     MK = 1e6  # K to MK
@@ -113,14 +150,17 @@ def output():
         Strain = np.identity(3) - np.matmul(np.linalg.inv(Orth[0, :]), Orth[0:, :])
     else:
         Strain = np.matmul(np.linalg.inv(Orth[0:, :]), Orth[0, :]) - np.identity(3)
+
     if FiniteStrain:  # Symmetrising to remove shear
         Strain = (
             Strain
             + np.transpose(Strain, axes=[0, 2, 1])
             + np.matmul(Strain, np.transpose(Strain, axes=[0, 2, 1]))
         ) / 2
+
     else:
         Strain = (Strain + np.transpose(Strain, axes=[0, 2, 1])) / 2
+
     DiagStrain, PrinAx = np.linalg.eigh(
         Strain
     )  # Diagonalising to get eigenvectors and values, PrinAx is in orthogonal coordinates
@@ -140,7 +180,14 @@ def output():
                 AxesOrder = np.array(
                     (0, 1, 2), dtype=np.int8
                 )  # if the auto match fails, set it back to normal
-                print("Axes automatching failed for row: ", n, " TPx:", TPx[n])
+                warning.append(
+                    str(
+                        "Axes automatching failed for row: "
+                        + str(n)
+                        + " TPx:"
+                        + str(TPx[n])
+                    )
+                )
         DiagStrain[n, [0, 1, 2]] = DiagStrain[n, AxesOrder]
         PrinAx[n, :, [0, 1, 2]] = PrinAx[n, :, AxesOrder]
 
@@ -219,7 +266,7 @@ def output():
         CoeffThermHeadings = [
             "Axes",
             "\u03C3 (MK\u207b\u00B9)",
-            "\u03C3\u03C3 (MK\N{SUPERSCRIPT ONE})",
+            "\u03C3\u03C3 (MK{SUPERSCRIPT ONE})",
             "a",
             "b",
             "c",
@@ -377,7 +424,7 @@ def output():
         K = np.zeros((3, Latt.shape[0]))  # compressibilities TPa-1
         KErr = np.zeros((3, Latt.shape[0]))  # errors in K TPa-1
 
-        VolCoef = VolGrad / Vol[0] * TPa
+        VolCoef = -1 * VolGrad / Vol[0] * TPa
         VolCoefErr = VolGradErr / Vol[0] * TPa
 
         ### Bounds for the empirical fit
@@ -1056,7 +1103,7 @@ def output():
             cmax=maxIn,
             cmin=maxIn * -1,
             cmid=0,
-            colorscale="rdbu",
+            colorscale="rdbu_r",
             opacity=1.0,
             hovertemplate="alpha: %{surfacecolor:.1f}"
             + "<br>x: %{x:.1f}"

@@ -12,8 +12,14 @@
     <div class="page">
       <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
         class="image">
-      <h2>WARNING</h2> 
-      {{ warning }}
+      {% if warning is defined and warning %}
+      <h2>WARNINGS</h2> 
+      <ol>
+      {% for warn in warning %}
+      <li>{{warn}}</li>
+      {% endfor %}
+      </ol>        
+      {% endif %}
       <h2>Output</h2>
 
       <table class="table">
@@ -107,6 +113,48 @@
         {% endfor %}
       </table>
 
+
+      <h2 class="tooltip">Principal Axes<span class="tooltiptext">Principal axes at each point in crystallographic and
+        orthogonal coordinates.</span></h2>
+
+    <table>
+      <tr class="table_header">
+        <th></th>
+        <th>X<sub>1</sub> </th>
+        <th></th>
+        <th></th>
+        <th>X<sub>2</sub></th>
+        <th></th>
+        <th></th>
+        <th>X<sub>3</sub> </th>
+        <th></th>
+        <th></th>
+      </tr>
+      <tr class="table_header">
+        <th>T (K)</th>
+        <th>a </th>
+        <th>b </th>
+        <th>c </th>
+        <th>a </th>
+        <th>b </th>
+        <th>c </th>
+        <th>a </th>
+        <th>b </th>
+        <th>c </th>
+      </tr>
+      {% for n in range(1,TPx|length) %}
+      <tr>
+        <td>{{ TPx[n] }}</td>
+        {% for i in range(3) %}
+        {% for j in range(3) %}
+        <td>{{ PrinAxCryst[n][i][j]}}</td>
+        {% endfor %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+
+    </table>
+
       <h2>Volume</h2>
       <table>
         <tr class="table_header">
@@ -126,48 +174,6 @@
         </tr>
         {% endfor %}
       </table>
-
-      <h2 class="tooltip">Principal Axes<span class="tooltiptext">Principal axes at each point in crystallographic and
-          orthogonal coordinates.</span></h2>
-
-      <table>
-        <tr class="table_header">
-          <th></th>
-          <th>X<sub>1</sub> </th>
-          <th></th>
-          <th></th>
-          <th>X<sub>2</sub></th>
-          <th></th>
-          <th></th>
-          <th>X<sub>3</sub> </th>
-          <th></th>
-          <th></th>
-        </tr>
-        <tr class="table_header">
-          <th>T (K)</th>
-          <th>a </th>
-          <th>b </th>
-          <th>c </th>
-          <th>a </th>
-          <th>b </th>
-          <th>c </th>
-          <th>a </th>
-          <th>b </th>
-          <th>c </th>
-        </tr>
-        {% for n in range(1,TPx|length) %}
-        <tr>
-          <td>{{ TPx[n] }}</td>
-          {% for i in range(3) %}
-          {% for j in range(3) %}
-          <td>{{ PrinAxCryst[n][i][j]}}</td>
-          {% endfor %}
-          {% endfor %}
-        </tr>
-        {% endfor %}
-
-      </table>
-
 
       <h2 class="tooltip">Input<span class="tooltiptext">Input as interpreted by PASCal.</span></h2>
 

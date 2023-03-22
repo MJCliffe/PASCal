@@ -12,8 +12,14 @@
     <div class="page">
       <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
         class="image">
-      <h2>WARNING</h2> 
-      {{ warning }}
+      {% if warning is defined and warning %}
+      <h2>WARNINGS</h2> 
+      <ol>
+      {% for warn in warning %}
+      <li>{{warn}}</li>
+      {% endfor %}
+      </ol>        
+      {% endif %}
       <h2>Output</h2>
       <table>
         <tr class="table_header">
@@ -123,7 +129,7 @@
           <th> </th>
         </tr>
         <tr class="table_header">
-          <th>T (K)</th>
+          <th>q (mAh g<sup>–1</sup>)</th>
           <th>a </th>
           <th>b </th>
           <th>c </th>

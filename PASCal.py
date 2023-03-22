@@ -43,6 +43,7 @@ def Orthomat(Latt):
     orth[:, 1, 1] = 1 / (Latt[:, 1] * np.sin(alpha))
     orth[:, 2, 1] = -1 * np.cos(alpha) / (Latt[:, 2] * np.sin(alpha))
     orth[:, 2, 2] = 1 / Latt[:, 2]
+
     return orth
 
 
