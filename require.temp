@@ -1,2 +1,0 @@
-how to get a new requirements.txt 
-pip list --format=freeze > requireme
