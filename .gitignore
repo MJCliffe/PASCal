@@ -132,6 +132,6 @@ dmypy.json
 require.temp
 TodoList.md
 Test_Values.md
-
+all.mod
 .vscode/
 .venv/
