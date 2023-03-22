@@ -47,7 +47,7 @@ def test_T_sample_data(client, sample_T):
         "DegPolyCap": "",
         "DegPolyVol": "",
         "EulerianStrain": "True",
-        "finite": "True",
+        "FiniteStrain": "True",
         "data": sample_T,
     }
 
@@ -88,7 +88,7 @@ def test_q_sample_data(client, sample_q):
     post_parameters = {
         "DataType": "Electrochemical",
         "EulerianStrain": "True",
-        "finite": "True",
+        "FiniteStrain": "True",
         "Pc": "False",
         "PcVal": "",
         "DegPolyCap": 4,
