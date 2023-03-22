@@ -133,5 +133,5 @@ require.temp
 TodoList.md
 Test_Values.md
 
-./vscode
-./venv
+.vscode/
+.venv/
