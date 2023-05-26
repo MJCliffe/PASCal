@@ -7,7 +7,7 @@ import PASCal
 import numpy as np
 import json
 import os
-
+import itertools
 from scipy.optimize import curve_fit
 
 app = Flask(__name__)
@@ -168,26 +168,19 @@ def output():
     ### Axes matching
     for n in range(2, length):
         Match = np.dot(
-            PrinAx[1, :], PrinAx[n,]
+            PrinAx[1, :].T, PrinAx[n, :]
         )  # an array matching the axes against each other
         AxesOrder = np.zeros(
             (3), dtype=np.int8
         )  # a list of the axes needed to convert the eigenvalues and vectors into a consistent format
-        for i in range(3):
-            AxesOrder[i] = np.argmax(np.abs(Match[i, :]))
-        for i in range(3):
-            if np.count_nonzero(AxesOrder == i) != 1:
-                AxesOrder = np.array(
-                    (0, 1, 2), dtype=np.int8
-                )  # if the auto match fails, set it back to normal
-                warning.append(
-                    str(
-                        "Axes automatching failed for row: "
-                        + str(n)
-                        + " TPx:"
-                        + str(TPx[n])
-                    )
-                )
+        TestAxesOrder = np.zeros((6))  # cost function for each item
+        permute = list(itertools.permutations([0, 1, 2]))  # all orders
+        m = 0
+        for item in permute:
+            for i in range(3):
+                TestAxesOrder[m] += np.abs(Match[i][item[i]])
+            m = m + 1
+        AxesOrder = np.array(permute[np.argmax(TestAxesOrder)])
         DiagStrain[n, [0, 1, 2]] = DiagStrain[n, AxesOrder]
         PrinAx[n, :, [0, 1, 2]] = PrinAx[n, :, AxesOrder]
 
@@ -199,7 +192,7 @@ def output():
         PrinAxCryst
     )  # Unit Cell in Principal axes coordinates, å
     PrinAxCryst = (
-        PrinAxCryst.T / (np.sum(PrinAxCryst ** 2, axis=2) ** 0.5).T
+        PrinAxCryst.T / (np.sum(PrinAxCryst**2, axis=2) ** 0.5).T
     ).T  # normalised to make UVW near 1
     ### Ensures the largest component of each eigenvector is positive to make comparing easier
     MaxAxis = np.argmax(
@@ -377,7 +370,6 @@ def output():
         VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
 
     if DataType == "Pressure":
-
         ###Headings for tables
         TPxLabel = "P(GPa)"
         KEmpHeadings = [
@@ -429,11 +421,15 @@ def output():
 
         ### Bounds for the empirical fit
         EmpBounds = np.array(
-            [[-np.inf, -np.inf, -np.inf, -np.inf], [np.inf, np.inf, min(TPx), np.inf]]
+            [
+                [-np.inf, -np.inf, -np.inf, -np.inf],
+                [np.inf, np.inf, min(TPx), np.inf],
+            ]
         )
 
         for i in range(3):
             InitParams = np.array([CalYInt[i], CalAlpha[i], min(TPx) - 0.001, 0.5])
+
             CalEmPopt[i], CalEmPcov[i] = curve_fit(
                 PASCal.EmpEq,
                 TPx,
@@ -457,6 +453,7 @@ def output():
                 PASCal.Comp(TPx[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])
                 * TPa
             )  # compressibilities (TPa^-1) so multiply by 1e3
+
             KErr[i][:] = (
                 PASCal.CompErr(
                     CalEmPcov[i],

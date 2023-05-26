@@ -135,3 +135,9 @@ Test_Values.md
 all.mod
 .vscode/
 .venv/
+cgistrain_online_from_server.f90
+requireme
+troubleshooting.py
+requirements.old
+.deployment
+.DS_Store
