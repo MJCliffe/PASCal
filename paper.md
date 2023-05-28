@@ -19,7 +19,7 @@
     index: 1 
   date: 28 May 2023
   
-  bibliography: "PASCAL.bib"
+  bibliography: paper.bib
 ...
 
 <!-- bibliography: /Users/pczmjc1/Library/CloudStorage/OneDrive-TheUniversityofNottingham/Papers/Zotero/defaultlibrary.bib   -->
