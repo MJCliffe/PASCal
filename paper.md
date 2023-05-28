@@ -17,9 +17,9 @@
   affiliations:
   - name: School of Chemistry, University Park, Nottingham, NG7 2RD, United Kingdom    
     index: 1 
-  date: 3 April 2023
+  date: 28 May 2023
   
-  bibliography: "./PASCAL 2.bib"
+  bibliography: "PASCAL.bib"
 ...
 
 <!-- bibliography: /Users/pczmjc1/Library/CloudStorage/OneDrive-TheUniversityofNottingham/Papers/Zotero/defaultlibrary.bib   -->
