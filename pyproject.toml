@@ -19,6 +19,28 @@ classifiers = [
 ]
 requires-python = '>=3.8'
 
+dependencies = [
+    "Flask",
+    "Jinja2",
+    "numpy",
+    "pandas",
+    "plotly",
+    "scipy",
+    "statsmodels",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest~=7.2",
+    "beautifulsoup4~=4.11"
+]
+
+dev = [
+    "mypy",
+    "black",
+    "ruff",
+]
+
 [project.urls]
 "Homepage" = "https://pascal-notts.azurewebsites.net"
 "Repository" = "https://github.com/MJCliffe/PASCal"
