@@ -9,7 +9,7 @@ version = "2.0.0~dev"
 readme = "README.md"
 keywords = ["materials", "chemistry", "fitting", "strain", "lattice"]
 license = {text = "MIT"}
-authors = [{ name = "Matthew Cliffe", email = "matthew.cliffe@nottingham.ac.uk" }]
+authors = [{ name = "Matthew Cliffe" }]
 dynamic = ["version"]
 classifiers = [
     "Programming Language :: Python :: 3",
