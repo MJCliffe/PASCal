@@ -8,17 +8,17 @@ A paper summarising the original motivation and theory behind PASCal is publishe
 
 PASCal takes experimentally determined lattice parameters measured as a function of a parameter (temperature, pressure or charge), calculates the strain matrix, diagonalises this matrix to find the principal strains, and then carries out fits to simple functions to get summary metrics. Paste your values in, click calculate and see the results! There are helpful tips on hover, but more detailed information is below.
 
-# Input 
-Data should be input as plain text, with eight values per row, the control parameter $X$, its error $\sigma(X)$ and the lattice parameters (in Å and $^\circ$): X $\sigma (X)$ $a$ $b$ $c$ $\alpha$ $\beta$ $\gamma$. 
+# Input
+Data should be input as plain text, with eight values per row, the control parameter $X$, its error $\sigma(X)$ and the lattice parameters (in Å and $^\circ$): X $\sigma (X)$ $a$ $b$ $c$ $\alpha$ $\beta$ $\gamma$.
 
-Lines beginning with # are comments and ignored: 
+Lines beginning with # are comments and ignored:
 `#This line is metadata`.
 
-There are a number of other options: 
+There are a number of other options:
 - Data type: whether the data vary with temperature, pressure or electrochemical state-of-charge. This does not alter how the principal strains are calculated, but rather the fits (and units) that are carried out.
 - For pressure data, whether this is a high pressure phase, and if so at what critical pressure it undergoes the transition.
 - For electrochemical data, the maximum degree of Chebyshev polynomial to use to fit the lattice parameter and volume data.
-- Advanced strain options. This determines which strain formalism is used to calculate the strain. 
+- Advanced strain options. This determines which strain formalism is used to calculate the strain.
 
 # Output
 ## Summary Table
@@ -64,7 +64,17 @@ As different equations of state are used for the principal axis and volume fits,
 PASCal calculates finite Lagrangian strains by default. Options to use finite and/or Lagrangian strains are provided. PASCal also uses a numerical approach that means the strains calculated are effectively averages of both direction and magnitude. It assigns the strain to the axes by comparing the eigenvectors to the first data point, however this approach can fail where there is significant eigenvector rotation or very noisy data. Fitting of the calculated strains outside of PASCal and manually assigning the strains to the appropriate axes is currently the best approach for these kinds of systems. The directions of the principal axes are taken, like the expansivities from the median data point.
 
 # Offline Installation
-PASCal can be also run offline using a browser as a GUI. This requires NumPy, Plotly and Flask. Full requirements (with versions) available in `requirements.txt`. Once the code is downloaded run the program using `flask run` in the folder containing `app.py`. The software has been designed to run as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
+PASCal can be also run offline using a browser as a GUI. This requires NumPy, Plotly and Flask. Full requirements (with versions) available in `pyproject.toml`.
+Once you have cloned or downloaded this repository, use `pip` to install it (ideally into a virtual environment of your choice), by running, for example:
+
+```shell
+git clone git@github.com:MJCliffe/PASCal
+cd PASCal
+pip install -e .
+```
+
+You can then launch the app with `flask --app src/PASCal/app.py run` and access the app in your browser at http://localhost:5000 (by default).
+The software has been designed to run as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
 
 # Issues and Feature Requests
 If you find any bugs in the code, errors in the documentation or have any feature requests, please do [contribute](./CONTRIBUTING.md) via the GitHub Repository.
@@ -73,8 +83,8 @@ If you find any bugs in the code, errors in the documentation or have any featur
 There are a wide range of other useful programs available:
 - WINstrain and EOSfit (https://www.rossangel.com/). WINStrain provides a large number of different options for
 calculating strains from lattice parameters, but is no longer supported. EOSfit is a powerful tool for  fitting equations of state (principally pressure).
-- STRAIN (https://www.cryst.ehu.es/cryst/strain.html). The Bilbao Crystallographic Server can calculate strain calculations for a single pair of lattice parameters. 
+- STRAIN (https://www.cryst.ehu.es/cryst/strain.html). The Bilbao Crystallographic Server can calculate strain calculations for a single pair of lattice parameters.
 - ELATE (https://progs.coudert.name/elate). A tool for analysing full elastic constant tensors.
-  
+
 If you know of any other useful software that should be added to the list or have any other questions,
 please email matthew[dot]cliffe[at]nottingham[dot]ac[dot]uk

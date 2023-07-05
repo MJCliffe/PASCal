@@ -1,2 +1,0 @@
-pytest~=7.2
-beautifulsoup4~=4.11
