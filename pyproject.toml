@@ -5,7 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "PASCal"
 description = "Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data."
-version = "2.0.0~dev"
 readme = "README.md"
 keywords = ["materials", "chemistry", "fitting", "strain", "lattice"]
 license = {text = "MIT"}
