@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PASCal"
+description = "Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data."
+version = "2.0.0~dev"
+readme = "README.md"
+keywords = ["materials", "chemistry", "fitting", "strain", "lattice"]
+license = {text = "MIT"}
+authors = [{ name = "Matthew Cliffe", email = "matthew.cliffe@nottingham.ac.uk" }]
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = '>=3.8'
+
+[project.urls]
+"Homepage" = "https://pascal-notts.azurewebsites.net"
+"Repository" = "https://github.com/MJCliffe/PASCal"
