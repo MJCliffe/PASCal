@@ -5,7 +5,7 @@ on common inputs to the app.
 
 from pathlib import Path
 
-from app import app
+from PASCal.app import app
 
 from pytest import fixture
 from bs4 import BeautifulSoup
@@ -19,7 +19,7 @@ def client():
 
 def load_sample_data(filename):
     with open(
-        Path(__file__).parent / "tests" / "data" / filename, "r", encoding="utf-8"
+        Path(__file__).parent / "data" / filename, "r", encoding="utf-8"
     ) as f:
         flines = f.readlines()
     return "\r".join(flines).replace("\n\r", "\r\n").strip("\n")
