@@ -28,19 +28,9 @@ pandas = "*"
 plotly = "*"
 scipy = "*"
 statsmodels = "*"
-    
+pytest = { version = "*", optional = true }
+beautifulsoup4 = { version = "*", optional = true }
 
-[project.optional-dependencies]
-test = [
-    "pytest~=7.2",
-    "beautifulsoup4~=4.11"
-]
 
-dev = [
-    "mypy",
-    "black",
-    "ruff",
-]
-
-[project.urls]
-
+[tool.poetry.extras]
+test = ["pytest", "beautifulsoup4"]
