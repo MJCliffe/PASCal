@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        poetry install --with tests
+        poetry install --all-extras
 
     - name: Run tests
       run: pytest -rs -vvv
