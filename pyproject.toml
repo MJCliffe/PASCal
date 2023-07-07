@@ -18,6 +18,7 @@ classifiers = [
 ]
 homepage = "https://pascal-notts.azurewebsites.net"
 repository = "https://github.com/MJCliffe/PASCal"
+packages = [{ include = "PASCal", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.8"
