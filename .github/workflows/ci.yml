@@ -33,7 +33,6 @@ jobs:
 
     - name: Run tests
       run: |
-        poetry run 'which python'
-        poetry run 'pip freeze'
+        which python
         pip freeze
-        poetry run 'pytest -rs -vvv'
+        pytest -rs -vvv
