@@ -32,4 +32,4 @@ jobs:
         poetry install --all-extras
 
     - name: Run tests
-      run: pytest -rs -vvv
+      run: poetry run 'pytest -rs -vvv'
