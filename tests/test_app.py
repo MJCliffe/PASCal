@@ -3,6 +3,7 @@ on common inputs to the app.
 
 """
 
+from functools import partial
 from pathlib import Path
 
 from PASCal.app import app
@@ -15,6 +16,10 @@ from bs4 import BeautifulSoup
 def client():
     with app.test_client() as cli:
         yield cli
+
+@fixture(scope="session")
+def parser():
+    return partial(BeautifulSoup, features="html.parser")
 
 
 def load_sample_data(filename):
@@ -40,7 +45,7 @@ def sample_q():
     return load_sample_data("sample_q.tsv")
 
 
-def test_T_sample_data(client, sample_T):
+def test_T_sample_data(client, sample_T, parser):
     post_parameters = {
         "DataType": "Temperature",
         "PcVal": "",
@@ -57,12 +62,12 @@ def test_T_sample_data(client, sample_T):
     html_response = [d for d in response.response]
     assert len(html_response) == 1
 
-    soup = BeautifulSoup(html_response[0])
+    soup = parser(html_response[0])
     tables = soup.find_all("table")
     assert len(tables) == 5
 
 
-def test_P_sample_data(client, sample_P):
+def test_P_sample_data(client, sample_P, parser):
     post_parameters = {
         "DataType": "Pressure",
         "EulerianStrain": "True",
@@ -80,12 +85,12 @@ def test_P_sample_data(client, sample_P):
     html_response = [d for d in response.response]
     assert len(html_response) == 1
 
-    soup = BeautifulSoup(html_response[0])
+    soup = parser(html_response[0])
     tables = soup.find_all("table")
     assert len(tables) == 7
 
 
-def test_q_sample_data(client, sample_q):
+def test_q_sample_data(client, sample_q, parser):
     post_parameters = {
         "DataType": "Electrochemical",
         "EulerianStrain": "True",
@@ -103,6 +108,6 @@ def test_q_sample_data(client, sample_q):
     html_response = [d for d in response.response]
     assert len(html_response) == 1
 
-    soup = BeautifulSoup(html_response[0])
+    soup = parser(html_response[0])
     tables = soup.find_all("table")
     assert len(tables) == 6
