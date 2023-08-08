@@ -35,4 +35,4 @@ jobs:
       run: |
         which python
         pip freeze
-        pytest -rs -vvv
+        poetry run pytest
