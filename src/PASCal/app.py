@@ -3,7 +3,7 @@ import plotly
 import plotly.graph_objs as go
 import plotly.subplots
 import statsmodels.api as sm
-import PASCal
+import PASCal.utils
 import numpy as np
 import json
 import os
@@ -102,7 +102,7 @@ def output():
     TPx = np.array(TPx)
     TPxError = np.array(TPxError)
     Latt = np.stack(Latt)
-    Vol = PASCal.CellVol(Latt)  # volumes in (Angstrom^3)
+    Vol = PASCal.utils.cell_vol(Latt)  # volumes in (Angstrom^3)
     ## Data error handling
     if len(TPx) < 2:
         raise Exception("Too few data points")
@@ -110,7 +110,7 @@ def output():
     if DataType == "Pressure":
         if len(TPx) < 4:
             warning.append(
-                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). As PASCal.utils calculates errors from derivatives, more data points than parameters are needed for error estimates."
             )
         if UsePc == "True":
             if np.amin(TPx) < PcVal:
@@ -127,12 +127,12 @@ def output():
         if len(TPx) - 2 < DegPolyCap:
             DegPolyCap = len(TPx) - 2
             warning.append(
-                "The maximum degree of the Chebyshev strain polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+                "The maximum degree of the Chebyshev strain polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal.utils calculates errors from derivatives, more data points than parameters are needed for error estimates."
             )
         if len(TPx) - 2 < DegPolyVol:
             DegPolyVol = len(TPx) - 2
             warning.append(
-                "The maximum degree of the Chebyshev volume polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+                "The maximum degree of the Chebyshev volume polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal.utils calculates errors from derivatives, more data points than parameters are needed for error estimates."
             )
 
     percent = 1e2  # conversions
@@ -145,7 +145,7 @@ def output():
     ####
 
     ### Strain calculations
-    Orth = PASCal.Orthomat(Latt[:])  # cell in orthogonal axes
+    Orth = PASCal.utils.orthomat(Latt[:])  # cell in orthogonal axes
     if EulerianStrain:  # Strain calculation
         Strain = np.identity(3) - np.matmul(np.linalg.inv(Orth[0, :]), Orth[0:, :])
     else:
@@ -431,7 +431,7 @@ def output():
             InitParams = np.array([CalYInt[i], CalAlpha[i], min(TPx) - 0.001, 0.5])
 
             CalEmPopt[i], CalEmPcov[i] = curve_fit(
-                PASCal.EmpEq,
+                PASCal.utils.EmpEq,
                 TPx,
                 DiagStrain[:, i],
                 p0=InitParams,
@@ -440,7 +440,7 @@ def output():
                 sigma=TPxError,
             )
             XCal[i][:] = (
-                PASCal.EmpEq(
+                PASCal.utils.EmpEq(
                     TPx[:],
                     CalEmPopt[i][0],
                     CalEmPopt[i][1],
@@ -450,12 +450,12 @@ def output():
                 * percent
             )  # strain %
             K[i][:] = (
-                PASCal.Comp(TPx[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])
+                PASCal.utils.Comp(TPx[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3])
                 * TPa
             )  # compressibilities (TPa^-1) so multiply by 1e3
 
             KErr[i][:] = (
-                PASCal.CompErr(
+                PASCal.utils.CompErr(
                     CalEmPcov[i],
                     TPx[:],
                     CalEmPopt[i][1],
@@ -475,7 +475,7 @@ def output():
 
         ### Volume fits
         PoptSecBM, PcovSecBM = curve_fit(
-            PASCal.SecBM,
+            PASCal.utils.SecBM,
             Vol,
             TPx,
             p0=np.array([Vol[0], -Vol[0] * (TPx[-1] - TPx[0]) / (Vol[-1] - Vol[0])]),
@@ -489,7 +489,7 @@ def output():
         )  # B prime=dB/dp  initial guess for the third-order Birch-Murnaghan fitting
 
         PoptThirdBM, PcovThirdBM = curve_fit(
-            PASCal.ThirdBM,
+            PASCal.utils.ThirdBM,
             Vol,
             TPx,
             p0=np.array([Vol[0], PoptSecBM[1], IntBprime]),
@@ -500,7 +500,7 @@ def output():
 
         if UsePc == "True":  ## if a critical pressure is USED
             PoptThirdBMPc, PcovThirdBMPc = curve_fit(
-                PASCal.WrapperThirdBMPc(PcVal),
+                PASCal.utils.WrapperThirdBMPc(PcVal),
                 Vol,
                 TPx,
                 p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]),
@@ -527,7 +527,7 @@ def output():
         )  # pressure derivative of the bulk modulus (dimensionless)
         SigBPrime = [
             "n/a",
-            PASCal.Round(SigBprimeThirdBM, 4),
+            PASCal.utils.round_array(SigBprimeThirdBM, 4),
         ]  #  the standard error in pressure derivative of the bulk modulus (dimensionless) - no applicable for 2nd order BM
         PcCoef = np.array([0, 0])
         if UsePc == "True":  ## add in critical pressure values
@@ -536,18 +536,18 @@ def output():
             V0 = np.concatenate([V0, [PoptThirdBMPc[0]]])
             SigV0 = np.concatenate([SigV0, [SigV0ThirdBMPc]])
             BPrime = np.concatenate([BPrime, [PoptThirdBMPc[2]]])
-            SigBPrime.append(PASCal.Round(SigBprimeThirdBMPc, 4))
+            SigBPrime.append(PASCal.utils.round_array(SigBprimeThirdBMPc, 4))
             PcCoef = np.concatenate([PcCoef, [PcVal]])
 
         ### Compute the pressure from all fits
         CalPress = np.zeros((3, Latt.shape[0]))
-        CalPress[0][:] = (Vol - VolYInt) / VolGrad  # not the same as PASCal?
-        CalPress[1][:] = PASCal.SecBM(Vol[:], PoptSecBM[0], PoptSecBM[1])
-        CalPress[2][:] = PASCal.ThirdBM(
+        CalPress[0][:] = (Vol - VolYInt) / VolGrad  # not the same as PASCal.utils?
+        CalPress[1][:] = PASCal.utils.SecBM(Vol[:], PoptSecBM[0], PoptSecBM[1])
+        CalPress[2][:] = PASCal.utils.ThirdBM(
             Vol[:], PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]
         )
         if UsePc == "True":  ## if a critical pressure is USED
-            PThirdBMPc = PASCal.ThirdBMPc(
+            PThirdBMPc = PASCal.utils.ThirdBMPc(
                 Vol[:], PoptThirdBMPc[0], PoptThirdBMPc[1], PoptThirdBMPc[2], PcVal
             )
             CalPress = np.vstack((CalPress, PThirdBMPc))
@@ -569,7 +569,7 @@ def output():
                 go.Scatter(
                     name=StrainFitLabel[i],
                     x=np.linspace(TPx[0], TPx[-1], num=1000),
-                    y=PASCal.EmpEq(
+                    y=PASCal.utils.EmpEq(
                         np.linspace(TPx[0], TPx[-1], num=1000), *CalEmPopt[i]
                     )
                     * percent,
@@ -638,7 +638,7 @@ def output():
                 go.Scatter(
                     name=KLabel[i],
                     x=np.linspace(TPx[0], TPx[-1], num=200),
-                    y=PASCal.Comp(
+                    y=PASCal.utils.Comp(
                         np.linspace(TPx[0], TPx[-1], num=200),
                         CalEmPopt[i][1],
                         CalEmPopt[i][2],
@@ -693,7 +693,7 @@ def output():
         FigVolume.add_trace(
             go.Scatter(
                 name="V<sub>2nd BM<sub>",
-                x=PASCal.SecBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptSecBM),
+                x=PASCal.utils.SecBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptSecBM),
                 y=np.linspace(Vol[0], Vol[-1], num=100),
                 mode="lines",
                 line=dict(color="Red"),
@@ -703,7 +703,7 @@ def output():
         FigVolume.add_trace(
             go.Scatter(
                 name="V<sub>3rd BM<sub>",
-                x=PASCal.ThirdBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBM),
+                x=PASCal.utils.ThirdBM(np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBM),
                 y=np.linspace(Vol[0], Vol[-1], num=100),
                 mode="lines",
                 line=dict(color="Blue"),
@@ -714,7 +714,7 @@ def output():
             FigVolume.add_trace(
                 go.Scatter(
                     name="V<sub>3rd BM with P<sub>c</sub><sub>",
-                    x=PASCal.ThirdBMPc(
+                    x=PASCal.utils.ThirdBMPc(
                         np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBMPc, PcVal
                     ),
                     y=np.linspace(Vol[0], Vol[-1], num=100),
@@ -1046,8 +1046,8 @@ def output():
 
     ####
     ## Indicatrix 3D plot
-    NormCrax = PASCal.NormCRAX(CrystPrinAx[u, :, :], PrinComp)
-    maxIn, R, X, Y, Z = PASCal.Indicatrix(PrinComp)
+    NormCrax = PASCal.utils.NormCRAX(CrystPrinAx[u, :, :], PrinComp)
+    maxIn, R, X, Y, Z = PASCal.utils.Indicatrix(PrinComp)
 
     if DataType == "Temperature":
         ColourBarTitle = "Expansivity (MK<sup>–1</sup>)"
@@ -1218,17 +1218,17 @@ def output():
             InputHeadings=InputHeadings,
             data=data,
             Axes=Axes,
-            PrinComp=PASCal.Round(PrinComp, 4),
-            CalAlphaErr=PASCal.Round(CalAlphaErr * MK, 4),
-            MedianPrinAxCryst=PASCal.Round(MedianPrinAxCryst, 4),
-            PrinAxCryst=PASCal.Round(PrinAxCryst, 4),
+            PrinComp=PASCal.utils.round_array(PrinComp, 4),
+            CalAlphaErr=PASCal.utils.round_array(CalAlphaErr * MK, 4),
+            MedianPrinAxCryst=PASCal.utils.round_array(MedianPrinAxCryst, 4),
+            PrinAxCryst=PASCal.utils.round_array(PrinAxCryst, 4),
             TPx=TPx,
-            DiagStrain=PASCal.Round(DiagStrain * percent, 4),
-            XCal=PASCal.Round(XCal, 4),
-            Vol=PASCal.Round(Vol, 4),
-            VolLin=PASCal.Round(VolLin, 4),
-            VolCoef=PASCal.Round(VolCoef, 4),
-            VolCoefErr=PASCal.Round(VolCoefErr, 4),
+            DiagStrain=PASCal.utils.round_array(DiagStrain * percent, 4),
+            XCal=PASCal.utils.round_array(XCal, 4),
+            Vol=PASCal.utils.round_array(Vol, 4),
+            VolLin=PASCal.utils.round_array(VolLin, 4),
+            VolCoef=PASCal.utils.round_array(VolCoef, 4),
+            VolCoefErr=PASCal.utils.round_array(VolCoefErr, 4),
             TPxError=TPxError,
             Latt=Latt,
         )
@@ -1243,38 +1243,38 @@ def output():
             PlotVolumeJSON=VolumeJSON,
             PlotIndicJSON=IndicatrixJSON,
             KEmpHeadings=KEmpHeadings,
-            CalEpsilon0=PASCal.Round(CalEpsilon0, 4),
-            CalLambda=PASCal.Round(CalLambda, 4),
-            CalPc=PASCal.Round(CalPc, 4),
-            CalNu=PASCal.Round(CalNu, 4),
+            CalEpsilon0=PASCal.utils.round_array(CalEpsilon0, 4),
+            CalLambda=PASCal.utils.round_array(CalLambda, 4),
+            CalPc=PASCal.utils.round_array(CalPc, 4),
+            CalNu=PASCal.utils.round_array(CalNu, 4),
             StrainHeadings=StrainHeadings,
             InputHeadings=InputHeadings,
             data=data,
             Axes=Axes,
-            PrinComp=PASCal.Round(PrinComp, 4),
-            KErr=PASCal.Round(KErr, 4),
+            PrinComp=PASCal.utils.round_array(PrinComp, 4),
+            KErr=PASCal.utils.round_array(KErr, 4),
             u=u,
-            MedianPrinAxCryst=PASCal.Round(MedianPrinAxCryst, 4),
-            PrinAxCryst=PASCal.Round(PrinAxCryst, 4),
+            MedianPrinAxCryst=PASCal.utils.round_array(MedianPrinAxCryst, 4),
+            PrinAxCryst=PASCal.utils.round_array(PrinAxCryst, 4),
             BMCoeffHeadings=BMCoeffHeadings,
             BMOrder=BMOrder,
-            B0=PASCal.Round(B0, 4),
-            SigB0=PASCal.Round(SigB0, 4),
-            V0=PASCal.Round(V0, 4),
-            SigV0=PASCal.Round(SigV0, 4),
-            BPrime=PASCal.Round(BPrime, 4),
+            B0=PASCal.utils.round_array(B0, 4),
+            SigB0=PASCal.utils.round_array(SigB0, 4),
+            V0=PASCal.utils.round_array(V0, 4),
+            SigV0=PASCal.utils.round_array(SigV0, 4),
+            BPrime=PASCal.utils.round_array(BPrime, 4),
             SigBPrime=SigBPrime,
-            PcCoef=PASCal.Round(PcCoef, 4),
+            PcCoef=PASCal.utils.round_array(PcCoef, 4),
             KHeadings=KHeadings,
-            K=PASCal.Round(K, 4),
+            K=PASCal.utils.round_array(K, 4),
             TPx=TPx,
-            DiagStrain=PASCal.Round(DiagStrain * percent, 4),
-            XCal=PASCal.Round(XCal, 4),
+            DiagStrain=PASCal.utils.round_array(DiagStrain * percent, 4),
+            XCal=PASCal.utils.round_array(XCal, 4),
             VolPressHeadings=VolPressHeadings,
-            Vol=PASCal.Round(Vol, 4),
-            VolCoef=PASCal.Round(VolCoef, 4),
-            VolCoefErr=PASCal.Round(VolCoefErr, 4),
-            CalPress=PASCal.Round(CalPress, 4),
+            Vol=PASCal.utils.round_array(Vol, 4),
+            VolCoef=PASCal.utils.round_array(VolCoef, 4),
+            VolCoefErr=PASCal.utils.round_array(VolCoefErr, 4),
+            CalPress=PASCal.utils.round_array(CalPress, 4),
             UsePc=UsePc,
             TPxError=TPxError,
             Latt=Latt,
@@ -1292,23 +1292,23 @@ def output():
             PlotIndicJSON=IndicatrixJSON,
             QPrimeHeadings=QPrimeHeadings,
             data=data,
-            MedianPrinAxCryst=PASCal.Round(MedianPrinAxCryst, 4),
-            PrinAxCryst=PASCal.Round(PrinAxCryst, 4),
+            MedianPrinAxCryst=PASCal.utils.round_array(MedianPrinAxCryst, 4),
+            PrinAxCryst=PASCal.utils.round_array(PrinAxCryst, 4),
             TPx=TPx,
             Axes=Axes,
             PrinComp=np.round(PrinComp, 4),
             StrainHeadings=StrainHeadings,
             DiagStrain=np.round(DiagStrain * percent, 4),
-            XCal=PASCal.Round(XCal, 4),
+            XCal=PASCal.utils.round_array(XCal, 4),
             DerHeadings=DerHeadings,
-            Vol=PASCal.Round(Vol, 4),
-            Deriv=PASCal.Round(Deriv, 4),
+            Vol=PASCal.utils.round_array(Vol, 4),
+            Deriv=PASCal.utils.round_array(Deriv, 4),
             VolElecHeadings=VolElecHeadings,
-            VolCheb=PASCal.Round(VolCheb, 4),
-            VolCoef=PASCal.Round(VolCoef, 4),
+            VolCheb=PASCal.utils.round_array(VolCheb, 4),
+            VolCoef=PASCal.utils.round_array(VolCoef, 4),
             InputHeadings=InputHeadings,
             TPxError=TPxError,
-            Latt=PASCal.Round(Latt, 4),
+            Latt=PASCal.utils.round_array(Latt, 4),
         )
 
 
