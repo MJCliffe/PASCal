@@ -1,7 +1,6 @@
 name: CI tests
 
 on:
-  pull_request:
   push:
     branches:
     - Live
