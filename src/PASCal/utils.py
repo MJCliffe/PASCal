@@ -24,50 +24,47 @@ def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
 
 
 def orthomat(latt: np.ndarray) -> np.ndarray:
-    """Compute the corresponding change-of-basis transformation
+    """Compute the corresponding change-of-basis transformations
     (square matrix M) in E = M x A.
 
     Parameters:
-        latt: The lattice parameters (a, b, c, α, β, γ) in Å and degrees, respectively.
+        latt: An Nx6 array of lattice parameters (a, b, c, α, β, γ) in Å and degrees, respectively.
 
     Returns:
-        The change-of-basis matrix M.
+        An array of change-of-basis matrices M for the N cells.
 
     """
     orth = np.zeros((np.shape(latt)[0], 3, 3))
-    a, b, c = latt[:3]
-    alpha, beta, gamma = np.radians(latt[3:])
     gaS = np.arccos(
-        (np.cos(alpha) * np.cos(beta) - np.cos(gamma)) / (np.sin(alpha) * np.sin(beta))
+        (np.cos(latt[:, 3]) * np.cos(latt[:, 4]) - np.cos(latt[:, 5])) / (np.sin(latt[:, 3]) * np.sin(latt[:, 4]))
     )
-    orth[0, 0] = 1 / (a * np.sin(beta) * np.sin(gaS))
-    orth[1, 0] = np.cos(gaS) / (b * np.sin(alpha) * np.sin(gaS))
-    orth[2, 0] = (
-        np.cos(alpha) * np.cos(gaS) / np.sin(alpha) + np.cos(beta) / np.sin(beta)
-    ) / (-1 * b * np.sin(gaS))
-    orth[1, 1] = 1 / (b * np.sin(alpha))
-    orth[2, 1] = -1 * np.cos(alpha) / (c * np.sin(alpha))
-    orth[2, 2] = 1 / c
+    orth[:, 0, 0] = 1 / (latt[:, 0] * np.sin(latt[:, 4]) * np.sin(gaS))
+    orth[:, 1, 0] = np.cos(gaS) / (latt[:, 1] * np.sin(latt[:, 3]) * np.sin(gaS))
+    orth[:, 2, 0] = (
+        np.cos(latt[:, 3]) * np.cos(gaS) / np.sin(latt[:, 3]) + np.cos(latt[:, 4]) / np.sin(latt[:, 4])
+    ) / (-1 * latt[:, 1] * np.sin(gaS))
+    orth[:, 1, 1] = 1 / (latt[:, 1] * np.sin(latt[:, 3]))
+    orth[:, 2, 1] = -1 * np.cos(latt[:, 3]) / (latt[:, 2] * np.sin(latt[:, 3]))
+    orth[:, 2, 2] = 1 / latt[:, 2]
 
     return orth
 
 
-def cell_vol(latt: np.ndarray) -> float:
-    """Calculates the unit-cell volume.
+def cell_vol(latt: np.ndarray) -> np.ndarray:
+    """Calculates the unit-cell volumes of a series of N unit cells.
 
     Parameters:
-        latt: The lattice parameters (a, b, c, α, β, γ) in Å and degrees, respectively.
+        latt: An N x 6 array of lattice parameters (a, b, c, α, β, γ) in Å and degrees, respectively.
 
     Returns:
-        The unit cell volume in Å³.
+        The unit cell volumes in Å³.
     """
-    a, b, c = latt[:3]
-    alpha, beta, gamma = np.radians(latt[3:])
     return (
-        a * b * c
-        * (1 - np.cos(alpha) ** 2 - np.cos(beta) ** 2 - np.cos(gamma) ** 2
-        + (2 * np.cos(alpha) * np.cos(beta) * np.cos(gamma)))** (0.5)
+        np.product(latt[:, :3], axis=1)
+        * (1 - np.cos(latt[:, 3]) ** 2 - np.cos(latt[:, 4]) ** 2 - np.cos(latt[:, 5]) ** 2 )
+        + np.sqrt((2 * np.cos(latt[:, 3]) * np.cos(latt[:, 4]) * np.cos(latt[:, 5])))
     )
+
 
 
 def EmpEq(TP: np.ndarray, Epsilon0: np.ndarray, lambdaP: float, Pc: float, Nu: float) -> np.ndarray:

@@ -1,6 +1,8 @@
 from PASCal.utils import round_array, orthomat, cell_vol
 import numpy as np
 import random
+from pytest import fixture
+import numpy as np
 
 def test_round_array():
     """Fuzz array rounding function with random arrays of different sizes."""
@@ -20,9 +22,9 @@ def test_round_array():
             assert round_array(_I * c, 1).all() == (rounded * _I).all()
 
 def test_orthomat():
-    lattice = np.array([1, 1, 1, 90, 90, 90])
+    lattice = np.array([[1, 1, 1, 90, 90, 90]])
     orth = orthomat(lattice)
-    assert orth.all() == np.array([[
+    M = np.array([[[
         [ 1.00000000e+00,  1.00000000e+00,  1.00000000e+00],
         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00]],
@@ -45,10 +47,14 @@ def test_orthomat():
 
        [[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
-        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00]]]).all()
+        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00]]]])
+    assert orth.all() == np.array([M]).all()
+    orth = orthomat(np.hstack((lattice, lattice)))
+    assert orth.all() == np.array([M, M]).all()
 
 def test_cell_vol():
-    lattice = np.array([1, 1, 1, 90, 90, 90])
-    assert cell_vol(lattice) == 1
-    lattice = np.array([2, 2, 2, 90, 90, 90])
-    assert cell_vol(lattice) == 8
+    lattice = np.array([[1, 1, 1, 90, 90, 90]])
+    lattice2 = np.array([[2, 2, 2, 90, 90, 90]])
+    assert cell_vol(lattice).all() == np.array([1]).all()
+    assert cell_vol(lattice2).all() == np.array([8]).all()
+    assert cell_vol(np.hstack((lattice, lattice2))).all() == np.array([1, 8]).all()
