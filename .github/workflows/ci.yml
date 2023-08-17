@@ -40,7 +40,7 @@ jobs:
         # add self-install to end of requirements file
         #sh -c 'echo "." >> requirements.txt'
         # copy app file so it is available as app:app
-        cp src/PASCal/app.py .
+        cp -r src/PASCal/app.py src/PASCal/static src/PASCal/templates .
         ls -al
 
     - name: Upload artifact for deployment
