@@ -26,6 +26,8 @@ jobs:
 
     - name: Install dependencies
       run: |
+        python -m venv venv
+        source venv/bin/activate
         python -m pip install --upgrade pip
         pip install poetry
         poetry install --all-extras
@@ -34,9 +36,13 @@ jobs:
       run: |
         poetry run pytest
 
-    - name: Export poetry requirements as txt
+    - name: Export poetry requirements as txt and tweak for Azure
       run: |
         poetry export -f requirements.txt -o requirements.txt --without-hashes
+        # add self-install to end of requirements file
+        sh -c 'echo "." >> requirements.txt'
+        # copy app file so it is available as app:app
+        cp src/PASCal/app.py .
 
     - name: Upload artifact for deployment
       uses: actions/upload-artifact@v3
