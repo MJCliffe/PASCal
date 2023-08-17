@@ -34,13 +34,15 @@ jobs:
       run: |
         poetry run pytest
 
-    - name: Export poetry requirements as txt and tweak for Azure
+    - name: Lock dependencies and prepare deployment
       run: |
-        #poetry export -f requirements.txt -o requirements.txt --without-hashes
+        # Azure expects to find the app, requirements and any static files at the top-level
+        # so we need to do some tweaks here to massage the repo into that format
+        poetry export -f requirements.txt -o requirements.txt --without-hashes
         # add self-install to end of requirements file
-        #sh -c 'echo "." >> requirements.txt'
+        sh -c 'echo "." >> requirements.txt'
         # copy app file so it is available as app:app
-        cp -r src/PASCal/app.py src/PASCal/static src/PASCal/templates .
+        mv src/PASCal/app.py src/PASCal/static src/PASCal/templates .
         ls -al
 
     - name: Upload artifact for deployment
