@@ -36,11 +36,12 @@ jobs:
 
     - name: Export poetry requirements as txt and tweak for Azure
       run: |
-        poetry export -f requirements.txt -o requirements.txt --without-hashes
+        #poetry export -f requirements.txt -o requirements.txt --without-hashes
         # add self-install to end of requirements file
-        sh -c 'echo "." >> requirements.txt'
+        #sh -c 'echo "." >> requirements.txt'
         # copy app file so it is available as app:app
         cp src/PASCal/app.py .
+        ls -al
 
     - name: Upload artifact for deployment
       uses: actions/upload-artifact@v3
