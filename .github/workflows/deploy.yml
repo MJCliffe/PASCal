@@ -51,7 +51,7 @@ jobs:
     permissions:
       contents: none
     runs-on: ubuntu-latest
-    needs: tests
+    needs: build
     environment:
       name: "Main deployment"
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
