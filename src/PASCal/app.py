@@ -59,7 +59,7 @@ class Options:
     use_pc: bool = field(
         default=False,
         metadata={
-            "form": "UsePc",
+            "form": "Pc",
             "description": "Whether to use the critical pressure to modify the fits.",
         },
     )
@@ -1358,7 +1358,7 @@ def fit(x, x_errors, unit_cells, options, raw_data):
             VolCoef=PASCal._legacy.Round(VolCoef, 4),
             VolCoefErr=PASCal._legacy.Round(VolCoefErr, 4),
             CalPress=PASCal._legacy.Round(CalPress, 4),
-            UsePc=options.use_pc,
+            UsePc=str(options.use_pc),
             TPxError=x_errors,
             Latt=unit_cells,
         )
