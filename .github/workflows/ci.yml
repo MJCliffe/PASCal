@@ -1,6 +1,7 @@
 name: CI tests
 
 on:
+  pull_request:
   push:
     branches:
     - Live
@@ -53,7 +54,7 @@ jobs:
           !venv/
 
   deploy:
-    if: github.repository == 'MJCliffe/PASCal'
+    if: ${{github.repository == 'MJCliffe/PASCal' && github.event_name == 'push' }}
     permissions:
       contents: none
     runs-on: ubuntu-latest
