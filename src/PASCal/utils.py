@@ -257,20 +257,20 @@ def normalise_crys_axes(
 
 def indicatrix(
     principal_components: np.ndarray,
-) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Generate angular data for indicatrix plot.
 
     Parameters:
         principal_components: eigenvalues
 
     Returns:
-        Index of the maximum prinicpal component, and
+        Index of the maximum principal component, and
             $(R, X, Y, Z)$ coordinates for the indicatrix plot.
 
     """
     theta, phi = np.linspace(0, np.pi, 100), np.linspace(0, 2 * np.pi, 2 * 100)
     Θ, Φ = np.meshgrid(theta, phi)
-    max_index = np.amax(np.abs(principal_components))
+    max_component = np.max(np.abs(principal_components))
     R = (
         principal_components[0] * (np.sin(Θ) * np.cos(Φ)) ** 2
         + principal_components[1] * (np.sin(Θ) * np.sin(Φ)) ** 2
@@ -279,4 +279,43 @@ def indicatrix(
     X = R * np.sin(Θ) * np.cos(Φ)
     Y = R * np.sin(Θ) * np.sin(Φ)
     Z = R * np.cos(Θ)
-    return max_index, R, X, Y, Z
+    return max_component, R, X, Y, Z
+
+
+def calculate_strain(
+    orthonormed_unit_cells: np.ndarray, mode: str = "eulerian", finite: bool = True
+) -> np.ndarray:
+    """Calculates the strain from the normalized unit cell parameters.
+
+    Parameters:
+        orthonormed_unit_cells: An N x 6 array of unit cell parameters in orthonormal axes.
+        mode: The strain mode, either "eulerian" or "lagrangian".
+        finite: Whether to correct for finite strains or infinitesimal strains.
+
+    Returns:
+        The array of strains.
+
+    """
+    if mode == "eulerian":
+        strain = np.identity(3) - np.matmul(
+            np.linalg.inv(orthonormed_unit_cells[0, :]), orthonormed_unit_cells[0:, :]
+        )
+    elif mode == "lagrangian":
+        strain = np.matmul(
+            np.linalg.inv(orthonormed_unit_cells[0:, :]), orthonormed_unit_cells[0, :]
+        ) - np.identity(3)
+    else:
+        raise RuntimeError(f"Did not understand mode {mode!r}")
+
+    if finite:
+        strain = (
+            strain
+            + (
+                np.transpose(strain, axes=[0, 2, 1])
+                + np.matmul(strain, np.transpose(strain, axes=[0, 2, 1]))
+            )
+        ) / 2
+    else:
+        strain = (strain + np.transpose(strain, axes=[0, 2, 1])) / 2
+
+    return strain

@@ -5,8 +5,7 @@ on common inputs to the app.
 
 import warnings
 from functools import partial
-
-from PASCal.app import app
+from PASCal.app import PASCalDataType, app, _parse_form_options
 
 from pytest import fixture
 from bs4 import BeautifulSoup
@@ -196,3 +195,23 @@ def test_q_sample_data(
     check_tables(
         [td.text for td in tables[4].find_all("td")], sample_q_volumes
     ), "Volumes table failed"
+
+
+def test_parse_options():
+    form_example = {
+        "DataType": "Temperature",
+        "UsePc": "True",
+        "PcVal": "0.19",
+        "EulerianStrain": "True",
+        "DegPolyVol": "10",
+        "DegPolyCap": "12",
+        "FiniteStrain": "False",
+    }
+    options = _parse_form_options(form_example)
+    assert options.data_type == PASCalDataType.TEMPERATURE
+    assert options.use_pc
+    assert options.pc_val == 0.19
+    assert options.eulerian_strain
+    assert options.deg_poly_cap == 12
+    assert options.deg_poly_vol == 10
+    assert not options.finite_strain
