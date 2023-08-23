@@ -146,7 +146,6 @@ def test_q_sample_data(
     sample_q_principal_axes,
     sample_q_charge_derivative,
     sample_q_delta_length,
-    check,
 ):
     post_parameters = {
         "DataType": "Electrochemical",
