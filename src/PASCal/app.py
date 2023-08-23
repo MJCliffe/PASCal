@@ -1,14 +1,19 @@
+from enum import Enum
 from flask import Flask, render_template, request, send_from_directory
 import plotly
+from dataclasses import dataclass, field, fields
+from typing import Optional, Tuple, List, Dict
 import plotly.graph_objs as go
 import plotly.subplots
 import statsmodels.api as sm
 import PASCal._legacy
+import PASCal.utils
 import numpy as np
 import json
 import os
 import itertools
 from scipy.optimize import curve_fit
+from PASCal.constants import PERCENT, K_to_MK, GPa_to_TPa, mAhg_to_kAhg
 
 app = Flask(__name__)
 
@@ -28,147 +33,193 @@ def favicon():
     )
 
 
+class PASCalDataType(Enum):
+    PRESSURE = "Pressure"
+    ELECTROCHEMICAL = "Electrochemical"
+    TEMPERATURE = "Temperature"
+
+
+@dataclass
+class Options:
+    eulerian_strain: bool = field(
+        default=True,
+        metadata={
+            "form": "EulerianStrain",
+            "description": "Whether to use Eulerian strain (True) or Lagrangian",
+        },
+    )
+    finite_strain: bool = field(default=True, metadata={"form": "FiniteStrain"})
+    data_type: PASCalDataType = field(
+        default=None,
+        metadata={
+            "form": "DataType",
+            "description": "The type of data passed, either 'Pressure', 'Electrochemical' or 'Temperature'",
+        },
+    )
+    use_pc: bool = field(
+        default=False,
+        metadata={
+            "form": "UsePc",
+            "description": "Whether to use the critical pressure to modify the fits.",
+        },
+    )
+    pc_val: Optional[float] = field(
+        default=None,
+        metadata={
+            "form": "PcVal",
+            "description": "Critical pressure value to use in GPa",
+        },
+    )
+    deg_poly_cap: Optional[int] = field(
+        default=None,
+        metadata={
+            "form": "DegPolyCap",
+            "description": "The degree of polynomial to use for fitting the capacity.",
+        },
+    )
+    deg_poly_vol: Optional[int] = field(
+        default=None,
+        metadata={
+            "form": "DegPolyVol",
+            "description": "The degree of polynomial to use for fitting the volume.",
+        },
+    )
+
+
+def _parse_form_options(form_data: Dict[str, str]) -> Options:
+    """Go through the set values of options and check their values."""
+    options = {}
+
+    for key in fields(Options):
+        form_key = key.metadata["form"]
+        if form_key in form_data:
+            value = True if form_data[form_key] == "True" else form_data[form_key]
+            value = False if form_data[form_key] == "False" else value
+            options[key.name] = value
+
+    if options.get("data_type"):
+        options["data_type"] = PASCalDataType(options["data_type"])
+    if options.get("pc_val"):
+        options["pc_val"] = float(options["pc_val"])
+    if options.get("deg_poly_cap"):
+        options["deg_poly_cap"] = int(options["deg_poly_cap"])
+    if options.get("deg_poly_vol"):
+        options["deg_poly_vol"] = int(options["deg_poly_vol"])
+
+    return Options(**options)
+
+
+def _parse_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Parses the string data provided in the web form into 3 arrays for
+    x-variable, errors and unit cell parameters given x.
+
+    Returns:
+        A tuple of x, x_error, and unit_cell parameters.
+
+    """
+    raw_data = request.form.get("data")
+    if not raw_data:
+        raise RuntimeError("No data provided.")
+
+    data = np.loadtxt(
+        (line for line in raw_data.splitlines()),
+    )
+
+    x = data[:, 0]
+    x_error = data[:, 1]
+    unit_cells = data[:, 2:]
+
+    return x, x_error, unit_cells
+
+
 @app.route("/output", methods=["POST"])
 def output():
-    data = request.form.get("data")
-    DataType = request.form.get(
-        "DataType"
-    )  # strings of 'Temperature' or 'Pressure' or 'Electrochemical'
-    EulerianStrain = request.form.get("EulerianStrain")  # if false lagrangian
+    try:
+        options = _parse_form_options(request.form)
+    except Exception as exc:
+        raise RuntimeError(f"Could not parse options: {request.form}\nException: {exc}")
 
-    if EulerianStrain == "True":
-        EulerianStrain = True
-    elif EulerianStrain == "False":
-        EulerianStrain = False
-    else:
-        print("ERROR Eulerian")
-        raise Exception("Invalid strain type - Eulerian")
-    FiniteStrain = request.form.get("FiniteStrain")  # if false infinitesimal
+    raw_data = request.form.get("data")
+    try:
+        x, x_errors, unit_cells = _parse_data()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not parse data: {request.form.get('data')}\nException: {exc}"
+        )
 
-    if FiniteStrain == "True":
-        FiniteStrain = True
-    elif FiniteStrain == "False":
-        FiniteStrain = False
-    else:
-        print("ERROR Finite")
-        raise Exception("Invalid strain type - Finite")
+    return fit(x, x_errors, unit_cells, options, raw_data)
 
-    if DataType == "Pressure":
-        UsePc = request.form.get(
-            "UsePc"
-        )  # if critical pressure is used (string, "true")
-        if UsePc == "True":
-            PcVal = float(request.form.get("PcVal"))  # critical pressure value
-    if DataType == "Electrochemical":
-        DegPolyCap = int(
-            request.form.get("DegPolyCap")
-        )  # degree of Chebyshev for strain
-        DegPolyVol = int(
-            request.form.get("DegPolyVol")
-        )  # degree of Chebyshev for volume
-    print("Request for output page received")
 
-    ####
-    # This section converts the raw string into a series of numpy arrays
-    TPx = []  # Temperature or pressure or electrochemical data (K, TPa^-1, mAhg-1)
-    TPxError = []  # error in input data (K, TPa^-1, mAhg-1)
-    Latt = (
-        []
-    )  # lattice numpy array of lattice parameters, a b c alpha beta gamma (Angstrom, degrees)
+def _precheck_inputs(x, options) -> Tuple[Options, List[str]]:
+    """Check that the raw data passed is compatible with the options, adjusting
+    the options where possible.
 
-    warning = (
-        []
-    )  # This contains any data input errors that can be bypassed without crashing everything
+    Returns:
+        The adjusted options and a list of warnings.
 
-    for line in data.splitlines():
-        line = line.strip()
-        if not line.startswith("#"):  # ignore comments
-            datum = np.fromstring(line, sep=" ")
-            if np.shape(datum)[0] == 0:
-                continue
-            if np.shape(datum)[0] != 8:
+    """
+    if len(x) < 2:
+        raise RuntimeError("Too few data points to perform fit: need at least 2")
+
+    warning: List[str] = []
+
+    if options.data_type == PASCalDataType.PRESSURE:
+        if len(x) < 4:
+            warning.append(
+                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). "
+                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+            )
+        if options.use_pc and options.pc_val:
+            if np.amin(x) < options.pc_val:
+                pc_val = np.min(x)
                 warning.append(
-                    str(
-                        "Wrong number of data points in line: "
-                        + str(datum)
-                        + ". It has been ignored."
-                    )
+                    "The critical pressure has to be smaller than the lower pressure data point. "
+                    f"Critical pressure has been set to the minimum value: {pc_val} GPa."
                 )
-                continue
-            TPx.append(datum[0])
-            TPxError.append(datum[1])
-            Latt.append(datum[2:])
+                options.pc_val = pc_val
 
-    TPx = np.array(TPx)
-    TPxError = np.array(TPxError)
-    Latt = np.stack(Latt)
-    Vol = PASCal._legacy.CellVol(Latt)  # volumes in (Angstrom^3)
-    ## Data error handling
-    if len(TPx) < 2:
-        raise Exception("Too few data points")
-
-    if DataType == "Pressure":
-        if len(TPx) < 4:
+    if options.data_type == PASCalDataType.ELECTROCHEMICAL:
+        if len(x) - 2 < options.deg_poly_cap:
+            deg_poly_cap = len(x) - 2
             warning.append(
-                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+                f"The maximum degree of the Chebyshev strain polynomial has been lowered from {options.deg_poly_cap} to {deg_poly_cap}. "
+                "At least as many data points as parameters are needed for a fit to be carried out. "
+                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
             )
-        if UsePc == "True":
-            if np.amin(TPx) < PcVal:
-                PcVal = np.amin(TPx)
-                warning.append(
-                    str(
-                        "The critical pressure has to be smaller than the lower pressure data point. Critical pressure has been set to the minimum value: "
-                        + str(PcVal)
-                        + " GPa."
-                    )
-                )
-
-    if DataType == "Electrochemical":
-        if len(TPx) - 2 < DegPolyCap:
-            DegPolyCap = len(TPx) - 2
+            options.deg_poly_cap = deg_poly_cap
+        if len(x) - 2 < options.deg_poly_vol:
+            deg_poly_vol = len(x) - 2
             warning.append(
-                "The maximum degree of the Chebyshev strain polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
+                f"The maximum degree of the Chebyshev volume polynomial has been lowered from {options.deg_poly_vol} to {deg_poly_vol}. "
+                "At least as many data points as parameters are needed for a fit to be carried out. "
+                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
             )
-        if len(TPx) - 2 < DegPolyVol:
-            DegPolyVol = len(TPx) - 2
-            warning.append(
-                "The maximum degree of the Chebyshev volume polynomial has been lowered. At least as many data points as parameters are needed for a fit to be carried out. As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
-            )
+            options.deg_poly_vol = deg_poly_vol
 
-    percent = 1e2  # conversions
-    TPa = 1e3  # GPa to TPa
-    MK = 1e6  # K to MK
-    kAhg = 1e6  # mAhg-1 to kAhg-1
+    return options, warning
 
-    u = int(np.ceil(len(TPx) / 2)) - 1  # median
-    length = np.shape(Latt)[0]
-    ####
 
-    ### Strain calculations
-    Orth = PASCal._legacy.Orthomat(Latt[:])  # cell in orthogonal axes
-    if EulerianStrain:  # Strain calculation
-        Strain = np.identity(3) - np.matmul(np.linalg.inv(Orth[0, :]), Orth[0:, :])
-    else:
-        Strain = np.matmul(np.linalg.inv(Orth[0:, :]), Orth[0, :]) - np.identity(3)
+def fit(x, x_errors, unit_cells, options, raw_data):
+    options, warning = _precheck_inputs(x, options)
+    cell_volumes = PASCal._legacy.CellVol(unit_cells)  # volumes in (Angstrom^3)
 
-    if FiniteStrain:  # Symmetrising to remove shear
-        Strain = (
-            Strain
-            + np.transpose(Strain, axes=[0, 2, 1])
-            + np.matmul(Strain, np.transpose(Strain, axes=[0, 2, 1]))
-        ) / 2
+    orthonormed_cells = PASCal._legacy.Orthomat(unit_cells)  # cell in orthogonal axes
 
-    else:
-        Strain = (Strain + np.transpose(Strain, axes=[0, 2, 1])) / 2
+    strain = PASCal.utils.calculate_strain(
+        orthonormed_cells,
+        mode="eulerian" if options.eulerian_strain else "lagrangian",
+        finite=options.finite_strain,
+    )
 
-    DiagStrain, PrinAx = np.linalg.eigh(
-        Strain
-    )  # Diagonalising to get eigenvectors and values, PrinAx is in orthogonal coordinates
+    # Diagonalising to get eigenvectors and values, principal_axes are in orthogonal coordinates
+    diagonal_strain, principal_axes = np.linalg.eigh(strain)
+
+    median_x = int(np.ceil(len(x) / 2)) - 1  # median
 
     ### Axes matching
-    for n in range(2, length):
+    for n in range(2, len(unit_cells)):
         Match = np.dot(
-            PrinAx[1, :].T, PrinAx[n, :]
+            principal_axes[1, :].T, principal_axes[n, :]
         )  # an array matching the axes against each other
         AxesOrder = np.zeros(
             (3), dtype=np.int8
@@ -181,12 +232,12 @@ def output():
                 TestAxesOrder[m] += np.abs(Match[i][item[i]])
             m = m + 1
         AxesOrder = np.array(permute[np.argmax(TestAxesOrder)])
-        DiagStrain[n, [0, 1, 2]] = DiagStrain[n, AxesOrder]
-        PrinAx[n, :, [0, 1, 2]] = PrinAx[n, :, AxesOrder]
+        diagonal_strain[n, [0, 1, 2]] = diagonal_strain[n, AxesOrder]
+        principal_axes[n, :, [0, 1, 2]] = principal_axes[n, :, AxesOrder]
 
     ### Calculating Eigenvectors and Cells in different coordinate systems
     PrinAxCryst = np.transpose(
-        np.matmul(Orth, PrinAx[:, :, :]), axes=[0, 2, 1]
+        np.matmul(orthonormed_cells, principal_axes[:, :, :]), axes=[0, 2, 1]
     )  # Eigenvector projected on crystallographic axes, UVW
     CrystPrinAx = np.linalg.inv(
         PrinAxCryst
@@ -202,7 +253,7 @@ def output():
     Mask = PrinAxCryst[I, J, MaxAxis] < 0
     PrinAxCryst[Mask, :] = PrinAxCryst[Mask, :] * -1
     # transpositions to take advantage of broadcasting, not maths
-    MedianPrinAxCryst = PrinAxCryst[u]
+    MedianPrinAxCryst = PrinAxCryst[median_x]
 
     ####
     ## Linear fitting of volume and lattice parameters
@@ -210,27 +261,27 @@ def output():
     CalAlpha = np.zeros(3)
     CalAlphaErr = np.zeros(3)
     CalYInt = np.zeros(3)
-    XCal = np.zeros((3, TPx.shape[0]))
+    XCal = np.zeros((3, len(x)))
     for i in range(3):
-        X = sm.add_constant(TPx)
+        X = sm.add_constant(x)
 
         StrainModel = sm.WLS(
-            DiagStrain[:, i], X, weights=1 / TPxError
+            diagonal_strain[:, i], X, weights=1 / x_errors
         )  # weighted least square
         StrainResults = StrainModel.fit()
         CalAlpha[i] = StrainResults.params[1]
         CalYInt[i] = StrainResults.params[0]
         CalAlphaErr[i] = StrainResults.HC0_se[1]
-        XCal[i] = (CalAlpha[i] * TPx + CalYInt[i]) * percent  # for output
+        XCal[i] = (CalAlpha[i] * x + CalYInt[i]) * PERCENT  # for output
 
     ## Volume fitting
-    X = sm.add_constant(TPx)
-    VolModel = sm.WLS(Vol, X, weights=1 / TPxError)  # weighted least squares
+    X = sm.add_constant(x)
+    VolModel = sm.WLS(cell_volumes, X, weights=1 / x_errors)  # weighted least squares
     VolResults = VolModel.fit()
     VolGrad = VolResults.params[1]
     VolYInt = VolResults.params[0]
     VolGradErr = VolResults.HC0_se[1]
-    VolLin = TPx * VolGrad + VolYInt
+    VolLin = x * VolGrad + VolYInt
 
     # X = sm.add_constant(Vol)
     # VolModel = sm.WLS(TPx,X,weights=1/TPxError) #weighted least squares backward <- this doesn't really make sense
@@ -253,7 +304,7 @@ def output():
     PlotMargin = dict(t=50, b=50, r=50, l=50)
 
     ## For each data type plot and do some additional fitting
-    if DataType == "Temperature":
+    if options.data_type == PASCalDataType.TEMPERATURE:
         ### headings for tables
         TPxLabel = "T(K)"
         CoeffThermHeadings = [
@@ -267,18 +318,18 @@ def output():
         VolTempHeadings = [TPxLabel, "V (A^3)", "VLin (A^3)"]
 
         ### unit conversions
-        VolCoef = VolGrad / Vol[0] * MK
-        VolCoefErr = VolGradErr / Vol[0] * MK
-        PrinComp = CalAlpha * MK
+        VolCoef = VolGrad / cell_volumes[0] * K_to_MK
+        VolCoefErr = VolGradErr / cell_volumes[0] * K_to_MK
+        PrinComp = CalAlpha * K_to_MK
 
         ### Strain Plot
         FigStrain = go.Figure()
         for i in range(3):
-            ### Temperature (K) vs strain (percentage) graph along each axis
+            ### Temperature (K) vs strain (PERCENTage) graph along each axis
             FigStrain.add_trace(
                 go.Scatter(
-                    x=TPx,
-                    y=DiagStrain[:, i] * percent,
+                    x=x,
+                    y=diagonal_strain[:, i] * PERCENT,
                     name=StrainLabel[i],
                     mode="markers",
                     marker_symbol="circle-open",
@@ -287,8 +338,8 @@ def output():
             )  # strain data
             FigStrain.add_trace(
                 go.Scatter(
-                    x=TPx,
-                    y=(CalAlpha[i] * TPx + CalYInt[i]) * percent,
+                    x=x,
+                    y=(CalAlpha[i] * x + CalYInt[i]) * PERCENT,
                     name=StrainFitLabel[i],
                     mode="lines",
                     line=dict(color=Colour[i]),
@@ -325,8 +376,8 @@ def output():
         FigVolume = go.Figure()
         FigVolume.add_trace(
             go.Scatter(
-                x=TPx,
-                y=Vol,
+                x=x,
+                y=cell_volumes,
                 name="V",
                 mode="markers",
                 marker_symbol="circle-open",
@@ -335,7 +386,7 @@ def output():
         )
         FigVolume.add_trace(
             go.Scatter(
-                x=TPx,
+                x=x,
                 y=VolLin,
                 name="V<sub>lin</sub>",
                 mode="lines",
@@ -369,7 +420,7 @@ def output():
         StrainJSON = json.dumps(FigStrain, cls=plotly.utils.PlotlyJSONEncoder)
         VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
 
-    if DataType == "Pressure":
+    if options.data_type == PASCalDataType.PRESSURE:
         ###Headings for tables
         TPxLabel = "P(GPa)"
         KEmpHeadings = [
@@ -399,7 +450,7 @@ def output():
         KHeadings = ["P", "K1", "K2", "K3", "\u03C3K1", "\u03C3K2", "\u03C3K3"]
         VolPressHeadings = [TPxLabel, "PLin", "PCalc,2nd", "P3rd", "V (A^3)"]
 
-        if UsePc == "True":  ## if a critical pressure is USED
+        if options.use_pc:  ## if a critical pressure is USED
             BMOrder.append("3rd with Pc")
             VolPressHeadings = [
                 TPxLabel,
@@ -413,58 +464,58 @@ def output():
         ### Unit conversion?
         CalEmPopt = np.zeros((3, 4))  # optimised empirical parameters
         CalEmPcov = np.zeros((3, 4, 4))  # the estimated covariance of CalEmPopt
-        K = np.zeros((3, Latt.shape[0]))  # compressibilities TPa-1
-        KErr = np.zeros((3, Latt.shape[0]))  # errors in K TPa-1
+        K = np.zeros((3, unit_cells.shape[0]))  # compressibilities TPa-1
+        KErr = np.zeros((3, unit_cells.shape[0]))  # errors in K TPa-1
 
-        VolCoef = -1 * VolGrad / Vol[0] * TPa
-        VolCoefErr = VolGradErr / Vol[0] * TPa
+        VolCoef = -1 * VolGrad / cell_volumes[0] * GPa_to_TPa
+        VolCoefErr = VolGradErr / cell_volumes[0] * GPa_to_TPa
 
         ### Bounds for the empirical fit
         EmpBounds = np.array(
             [
                 [-np.inf, -np.inf, -np.inf, -np.inf],
-                [np.inf, np.inf, min(TPx), np.inf],
+                [np.inf, np.inf, min(x), np.inf],
             ]
         )
 
         for i in range(3):
-            InitParams = np.array([CalYInt[i], CalAlpha[i], min(TPx) - 0.001, 0.5])
+            InitParams = np.array([CalYInt[i], CalAlpha[i], min(x) - 0.001, 0.5])
 
             CalEmPopt[i], CalEmPcov[i] = curve_fit(
                 PASCal._legacy.EmpEq,
-                TPx,
-                DiagStrain[:, i],
+                x,
+                diagonal_strain[:, i],
                 p0=InitParams,
                 bounds=EmpBounds,
                 maxfev=5000,
-                sigma=TPxError,
+                sigma=x_errors,
             )
             XCal[i][:] = (
                 PASCal._legacy.EmpEq(
-                    TPx[:],
+                    x[:],
                     CalEmPopt[i][0],
                     CalEmPopt[i][1],
                     CalEmPopt[i][2],
                     CalEmPopt[i][3],
                 )
-                * percent
+                * PERCENT
             )  # strain %
             K[i][:] = (
                 PASCal._legacy.Comp(
-                    TPx[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3]
+                    x[:], CalEmPopt[i][1], CalEmPopt[i][2], CalEmPopt[i][3]
                 )
-                * TPa
+                * GPa_to_TPa
             )  # compressibilities (TPa^-1) so multiply by 1e3
 
             KErr[i][:] = (
                 PASCal._legacy.CompErr(
                     CalEmPcov[i],
-                    TPx[:],
+                    x[:],
                     CalEmPopt[i][1],
                     CalEmPopt[i][2],
                     CalEmPopt[i][3],
                 )
-                * TPa
+                * GPa_to_TPa
             )  # errors in compressibilities (TPa^-1)
 
         CalEpsilon0 = np.array([CalEmPopt[0][0], CalEmPopt[1][0], CalEmPopt[2][0]])
@@ -472,42 +523,51 @@ def output():
         CalPc = np.array([CalEmPopt[0][2], CalEmPopt[1][2], CalEmPopt[2][2]])
         CalNu = np.array([CalEmPopt[0][3], CalEmPopt[1][3], CalEmPopt[2][3]])
         PrinComp = np.array(
-            [K[0][u], K[1][u], K[2][u]]
+            [K[0][median_x], K[1][median_x], K[2][median_x]]
         )  # median compressibilities (TPa^-1) for indicatrix plot
 
         ### Volume fits
         PoptSecBM, PcovSecBM = curve_fit(
             PASCal._legacy.SecBM,
-            Vol,
-            TPx,
-            p0=np.array([Vol[0], -Vol[0] * (TPx[-1] - TPx[0]) / (Vol[-1] - Vol[0])]),
+            cell_volumes,
+            x,
+            p0=np.array(
+                [
+                    cell_volumes[0],
+                    -cell_volumes[0]
+                    * (x[-1] - x[0])
+                    / (cell_volumes[-1] - cell_volumes[0]),
+                ]
+            ),
             maxfev=5000,
-            sigma=TPxError,
+            sigma=x_errors,
         )  # second-order Birch-Murnaghan fit
         SigV0SecBM, SigB0SecBM = np.sqrt(np.diag(PcovSecBM))
 
-        IntBprime = (-Vol[0] * (TPx[-1] - TPx[0]) / (Vol[-1] - Vol[0])) / (
-            TPx[-1] - TPx[0]
+        IntBprime = (
+            -cell_volumes[0] * (x[-1] - x[0]) / (cell_volumes[-1] - cell_volumes[0])
+        ) / (
+            x[-1] - x[0]
         )  # B prime=dB/dp  initial guess for the third-order Birch-Murnaghan fitting
 
         PoptThirdBM, PcovThirdBM = curve_fit(
             PASCal._legacy.ThirdBM,
-            Vol,
-            TPx,
-            p0=np.array([Vol[0], PoptSecBM[1], IntBprime]),
+            cell_volumes,
+            x,
+            p0=np.array([cell_volumes[0], PoptSecBM[1], IntBprime]),
             maxfev=5000,
-            sigma=TPxError,
+            sigma=x_errors,
         )  # third-order Birch-Murnaghan fit
         SigV0ThirdBM, SigB0ThirdBM, SigBprimeThirdBM = np.sqrt(np.diag(PcovThirdBM))
 
-        if UsePc == "True":  ## if a critical pressure is USED
+        if options.use_pc:  ## if a critical pressure is USED
             PoptThirdBMPc, PcovThirdBMPc = curve_fit(
-                PASCal._legacy.WrapperThirdBMPc(PcVal),
-                Vol,
-                TPx,
+                PASCal._legacy.WrapperThirdBMPc(options.pc_val),
+                cell_volumes,
+                x,
                 p0=np.array([PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]]),
                 maxfev=5000,
-                sigma=TPxError,
+                sigma=x_errors,
             )  # third order BM fit +Pc
             SigV0ThirdBMPc, SigB0ThirdBMPc, SigBprimeThirdBMPc = np.sqrt(
                 np.diag(PcovThirdBMPc)
@@ -532,25 +592,33 @@ def output():
             PASCal._legacy.Round(SigBprimeThirdBM, 4),
         ]  #  the standard error in pressure derivative of the bulk modulus (dimensionless) - no applicable for 2nd order BM
         PcCoef = np.array([0, 0])
-        if UsePc == "True":  ## add in critical pressure values
+        if options.use_pc:  ## add in critical pressure values
             B0 = np.concatenate([B0, [PoptThirdBMPc[1]]])
             SigB0 = np.concatenate([SigB0, [SigB0ThirdBMPc]])
             V0 = np.concatenate([V0, [PoptThirdBMPc[0]]])
             SigV0 = np.concatenate([SigV0, [SigV0ThirdBMPc]])
             BPrime = np.concatenate([BPrime, [PoptThirdBMPc[2]]])
             SigBPrime.append(PASCal._legacy.Round(SigBprimeThirdBMPc, 4))
-            PcCoef = np.concatenate([PcCoef, [PcVal]])
+            PcCoef = np.concatenate([PcCoef, [options.pc_val]])
 
         ### Compute the pressure from all fits
-        CalPress = np.zeros((3, Latt.shape[0]))
-        CalPress[0][:] = (Vol - VolYInt) / VolGrad  # not the same as PASCal._legacy?
-        CalPress[1][:] = PASCal._legacy.SecBM(Vol[:], PoptSecBM[0], PoptSecBM[1])
-        CalPress[2][:] = PASCal._legacy.ThirdBM(
-            Vol[:], PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]
+        CalPress = np.zeros((3, unit_cells.shape[0]))
+        CalPress[0][:] = (
+            cell_volumes - VolYInt
+        ) / VolGrad  # not the same as PASCal._legacy?
+        CalPress[1][:] = PASCal._legacy.SecBM(
+            cell_volumes[:], PoptSecBM[0], PoptSecBM[1]
         )
-        if UsePc == "True":  ## if a critical pressure is USED
+        CalPress[2][:] = PASCal._legacy.ThirdBM(
+            cell_volumes[:], PoptThirdBM[0], PoptThirdBM[1], PoptThirdBM[2]
+        )
+        if options.use_pc:  ## if a critical pressure is USED
             PThirdBMPc = PASCal._legacy.ThirdBMPc(
-                Vol[:], PoptThirdBMPc[0], PoptThirdBMPc[1], PoptThirdBMPc[2], PcVal
+                cell_volumes[:],
+                PoptThirdBMPc[0],
+                PoptThirdBMPc[1],
+                PoptThirdBMPc[2],
+                options.pc_val,
             )
             CalPress = np.vstack((CalPress, PThirdBMPc))
 
@@ -560,8 +628,8 @@ def output():
             FigStrain.add_trace(
                 go.Scatter(
                     name=StrainLabel[i],
-                    x=TPx,
-                    y=DiagStrain[:, i] * percent,
+                    x=x,
+                    y=diagonal_strain[:, i] * PERCENT,
                     mode="markers",
                     marker_symbol="circle-open",
                     marker=dict(color=Colour[i]),
@@ -570,11 +638,11 @@ def output():
             FigStrain.add_trace(
                 go.Scatter(
                     name=StrainFitLabel[i],
-                    x=np.linspace(TPx[0], TPx[-1], num=1000),
+                    x=np.linspace(x[0], x[-1], num=1000),
                     y=PASCal._legacy.EmpEq(
-                        np.linspace(TPx[0], TPx[-1], num=1000), *CalEmPopt[i]
+                        np.linspace(x[0], x[-1], num=1000), *CalEmPopt[i]
                     )
-                    * percent,
+                    * PERCENT,
                     mode="lines",
                     line=dict(color=Colour[i]),
                 )
@@ -615,7 +683,7 @@ def output():
             FigDeriv.add_trace(
                 go.Scatter(
                     name=KLabel[i],
-                    x=TPx,
+                    x=x,
                     y=K[i],
                     mode="markers",
                     marker_symbol="circle-open",
@@ -625,7 +693,7 @@ def output():
 
             FigDeriv.add_trace(
                 go.Scatter(
-                    x=np.concatenate([TPx, TPx[::-1]]),
+                    x=np.concatenate([x, x[::-1]]),
                     y=np.concatenate([K_high, K_low[::-1]]),
                     fill="toself",
                     fillcolor=Colour[i],
@@ -639,14 +707,14 @@ def output():
             FigDeriv.add_trace(
                 go.Scatter(
                     name=KLabel[i],
-                    x=np.linspace(TPx[0], TPx[-1], num=200),
+                    x=np.linspace(x[0], x[-1], num=200),
                     y=PASCal._legacy.Comp(
-                        np.linspace(TPx[0], TPx[-1], num=200),
+                        np.linspace(x[0], x[-1], num=200),
                         CalEmPopt[i][1],
                         CalEmPopt[i][2],
                         CalEmPopt[i][3],
                     )
-                    * TPa,  # compressibilities (TPa^-1) so multiply by 1e3,
+                    * GPa_to_TPa,  # compressibilities (TPa^-1) so multiply by 1e3,
                     mode="lines",
                     line=dict(color=Colour[i]),
                 )
@@ -684,8 +752,8 @@ def output():
         FigVolume.add_trace(
             go.Scatter(
                 name="V",
-                x=TPx,
-                y=Vol,
+                x=x,
+                y=cell_volumes,
                 mode="markers",
                 marker_symbol="circle-open",
                 marker=dict(color="Black"),
@@ -696,9 +764,9 @@ def output():
             go.Scatter(
                 name="V<sub>2nd BM<sub>",
                 x=PASCal._legacy.SecBM(
-                    np.linspace(Vol[0], Vol[-1], num=100), *PoptSecBM
+                    np.linspace(cell_volumes[0], cell_volumes[-1], num=100), *PoptSecBM
                 ),
-                y=np.linspace(Vol[0], Vol[-1], num=100),
+                y=np.linspace(cell_volumes[0], cell_volumes[-1], num=100),
                 mode="lines",
                 line=dict(color="Red"),
             )
@@ -708,22 +776,25 @@ def output():
             go.Scatter(
                 name="V<sub>3rd BM<sub>",
                 x=PASCal._legacy.ThirdBM(
-                    np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBM
+                    np.linspace(cell_volumes[0], cell_volumes[-1], num=100),
+                    *PoptThirdBM,
                 ),
-                y=np.linspace(Vol[0], Vol[-1], num=100),
+                y=np.linspace(cell_volumes[0], cell_volumes[-1], num=100),
                 mode="lines",
                 line=dict(color="Blue"),
             )
         )  # BM 3rd
 
-        if UsePc == "True":  ## add in critical pressure values
+        if options.use_pc:  ## add in critical pressure values
             FigVolume.add_trace(
                 go.Scatter(
                     name="V<sub>3rd BM with P<sub>c</sub><sub>",
                     x=PASCal._legacy.ThirdBMPc(
-                        np.linspace(Vol[0], Vol[-1], num=100), *PoptThirdBMPc, PcVal
+                        np.linspace(cell_volumes[0], cell_volumes[-1], num=100),
+                        *PoptThirdBMPc,
+                        options.pc_val,
                     ),
-                    y=np.linspace(Vol[0], Vol[-1], num=100),
+                    y=np.linspace(cell_volumes[0], cell_volumes[-1], num=100),
                     mode="lines",
                     legendrank=16,
                     line=dict(color="Green"),
@@ -759,7 +830,7 @@ def output():
         DerivJSON = json.dumps(FigDeriv, cls=plotly.utils.PlotlyJSONEncoder)
         VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
 
-    if DataType == "Electrochemical":
+    if options.data_type == PASCalDataType.ELECTROCHEMICAL:
         ###
         TPxLabel = "q(mAhg^-1)"
         QPrimeLabel = ["q'<sub>1</sub>", "q'<sub>2</sub>", "q'<sub>3</sub>"]
@@ -772,23 +843,27 @@ def output():
             []
         )  # Chebyshev coefficients of all degrees of Chebyshev polynomials for each axis
         ResStrain = np.zeros(
-            (3, DegPolyCap)
+            (3, options.deg_poly_cap)
         )  # Residuals of all degrees of Chebyshev polynomials for each axis
         ChebObj = []  # Chebyshev objects
-        ChebStrainDeg = np.zeros(DegPolyCap)  # degrees of Chebyshev polynomials
-        Deriv = np.zeros((3, Latt.shape[0]))  # derivatives of the Chebyshev polymoials
+        ChebStrainDeg = np.zeros(
+            options.deg_poly_cap
+        )  # degrees of Chebyshev polynomials
+        Deriv = np.zeros(
+            (3, unit_cells.shape[0])
+        )  # derivatives of the Chebyshev polymoials
         ChebDer = np.zeros(
-            (3, DegPolyCap)
+            (3, options.deg_poly_cap)
         )  # Chebyshev series coefficients of the derivative
 
         for i in range(0, 3):  # for every principal axis
             CoefAxis = []  # Chebyshev coefficients for each principal axis
-            for j in range(1, DegPolyCap + 1):  # for every degree
+            for j in range(1, options.deg_poly_cap + 1):  # for every degree
                 ChebStrainDeg[j - 1] = int(
                     j
                 )  # the degrees of Chebyshev polynomials for plotting the graph
                 coef, FullList = np.polynomial.chebyshev.chebfit(
-                    TPx, DiagStrain[:, i], j, full=True
+                    x, diagonal_strain[:, i], j, full=True
                 )  # fitting
                 CoefAxis.append(
                     coef
@@ -803,7 +878,7 @@ def output():
                 np.argmin(ResStrain[i])
             ]  # Chebyshev coefficients that give the smallest residual for each axis
             XCal[i] = np.polynomial.chebyshev.chebval(
-                TPx, CoefStrainOp
+                x, CoefStrainOp
             )  # Chebyshev coefficients that give the smallest residual for each axis
             ChebObj.append(
                 np.polynomial.chebyshev.Chebyshev(CoefStrainOp)
@@ -812,11 +887,11 @@ def output():
                 CoefStrainOp, m=1, scl=1, axis=0
             )  # Chebyshev series coefficients of the derivative
             Deriv[i][:] = (
-                np.polynomial.chebyshev.chebval(TPx, ChebDer[i]) * kAhg
+                np.polynomial.chebyshev.chebval(x, ChebDer[i]) * mAhg_to_kAhg
             )  # derivative at datapoints, now in muAhg^-1?
 
         PrinComp = np.array(
-            [Deriv[0][u], Deriv[1][u], Deriv[2][u]]
+            [Deriv[0][median_x], Deriv[1][median_x], Deriv[2][median_x]]
         )  # median derivatives of the Chebyshev polynomial (1/muAhg^-1) for the indicatrix plot
 
         ### Chebyshev polynomial volume fit
@@ -824,13 +899,13 @@ def output():
             []
         )  # a list to store Chebyshev coefficients of all degrees of Chebyshev polynomials
         ResVol = np.zeros(
-            DegPolyVol
+            options.deg_poly_vol
         )  # an array to store residuals of all degrees of Chebyshev polynomials
-        ChebVolDeg = np.arange(1, DegPolyVol + 1)
+        ChebVolDeg = np.arange(1, options.deg_poly_vol + 1)
 
         for i in ChebVolDeg:  # for every degree(s) of Chebyshev polynomials
             coef, FullList = np.polynomial.chebyshev.chebfit(
-                TPx, Vol, i, full=True
+                x, cell_volumes, i, full=True
             )  # fit
             ResVol[i - 1] = FullList[0][0]  # update residual
             CoefVolList.append(
@@ -839,19 +914,19 @@ def output():
 
         CoefVolOp = CoefVolList[np.argmin(ResVol)]  # best cheb fit
         VolCheb = np.polynomial.chebyshev.chebval(
-            TPx, CoefVolOp
+            x, CoefVolOp
         )  # calc volume from best Cheb fit
         ChebVolObj = np.polynomial.chebyshev.Chebyshev(CoefVolOp)
         VolDer = np.polynomial.chebyshev.chebder(CoefVolOp, m=1, scl=1, axis=0)
-        VolCoef = np.polynomial.chebyshev.chebval(TPx, VolDer)[u] * kAhg
+        VolCoef = np.polynomial.chebyshev.chebval(x, VolDer)[median_x] * mAhg_to_kAhg
 
         ### Strain Plot
         FigStrain = go.Figure()
         for i in range(3):  # adapt to plot every range
             FigStrain.add_trace(
                 go.Scatter(
-                    x=TPx,
-                    y=DiagStrain[:, i] * percent,
+                    x=x,
+                    y=diagonal_strain[:, i] * PERCENT,
                     name=StrainLabel[i],
                     mode="markers",
                     marker_symbol="circle-open",
@@ -860,8 +935,8 @@ def output():
             )
             FigStrain.add_trace(
                 go.Scatter(
-                    x=TPx,
-                    y=ChebObj[i](TPx) * percent,
+                    x=x,
+                    y=ChebObj[i](x) * PERCENT,
                     name=StrainFitLabel[i],
                     mode="lines",
                     line=dict(color=Colour[i]),
@@ -899,7 +974,7 @@ def output():
         for i in range(3):  # adapt to plot every range
             FigDeriv.add_trace(
                 go.Scatter(
-                    x=TPx,
+                    x=x,
                     y=Deriv[i],
                     name=QPrimeLabel[i],
                     legendgroup="5",
@@ -910,11 +985,11 @@ def output():
             )
             FigDeriv.add_trace(
                 go.Scatter(
-                    x=np.linspace(TPx[0], TPx[-1], num=300),
+                    x=np.linspace(x[0], x[-1], num=300),
                     y=np.polynomial.chebyshev.chebval(
-                        np.linspace(TPx[0], TPx[-1], num=300), ChebDer[i]
+                        np.linspace(x[0], x[-1], num=300), ChebDer[i]
                     )
-                    * kAhg,
+                    * mAhg_to_kAhg,
                     name=QPrimeLabel[i],
                     mode="lines",
                     line=dict(color=Colour[i]),
@@ -953,8 +1028,8 @@ def output():
         FigVolume.add_trace(
             go.Scatter(
                 name="V",
-                x=TPx,
-                y=Vol,
+                x=x,
+                y=cell_volumes,
                 mode="markers",
                 marker_symbol="circle-open",
                 marker=dict(color="Black"),
@@ -963,8 +1038,8 @@ def output():
 
         FigVolume.add_trace(
             go.Scatter(
-                x=TPx,
-                y=ChebVolObj(TPx),
+                x=x,
+                y=ChebVolObj(x),
                 name="V<sub>cheb</sub>",
                 mode="lines",
                 line=dict(color="Black"),
@@ -1052,14 +1127,14 @@ def output():
 
     ####
     ## Indicatrix 3D plot
-    NormCrax = PASCal._legacy.NormCRAX(CrystPrinAx[u, :, :], PrinComp)
+    NormCrax = PASCal._legacy.NormCRAX(CrystPrinAx[median_x, :, :], PrinComp)
     maxIn, R, X, Y, Z = PASCal._legacy.Indicatrix(PrinComp)
 
-    if DataType == "Temperature":
+    if options.data_type == PASCalDataType.TEMPERATURE:
         ColourBarTitle = "Expansivity (MK<sup>–1</sup>)"
-    if DataType == "Electrochemical":
+    if options.data_type == PASCalDataType.ELECTROCHEMICAL:
         ColourBarTitle = "Electrochemical strain charge derivative ([kAhg<sup>–1</sup>]<sup>–1</sup>)"
-    if DataType == "Pressure":
+    if options.data_type == PASCalDataType.PRESSURE:
         ColourBarTitle = "K (TPa<sup>–1</sup>)"
 
     FigIndic = go.Figure()
@@ -1210,8 +1285,9 @@ def output():
     )
 
     ## return the data to the page ##return every plots with all the names then if else for each input in HTML
-    if DataType == "Temperature":
-        return render_template(
+
+    if options.data_type == PASCalDataType.TEMPERATURE:
+        response = render_template(
             "temperature.html",
             config=config,
             warning=warning,
@@ -1222,24 +1298,25 @@ def output():
             StrainHeadings=StrainHeadings,
             VolTempHeadings=VolTempHeadings,
             InputHeadings=InputHeadings,
-            data=data,
+            data=raw_data,
             Axes=Axes,
             PrinComp=PASCal._legacy.Round(PrinComp, 4),
-            CalAlphaErr=PASCal._legacy.Round(CalAlphaErr * MK, 4),
+            CalAlphaErr=PASCal._legacy.Round(CalAlphaErr * K_to_MK, 4),
             MedianPrinAxCryst=PASCal._legacy.Round(MedianPrinAxCryst, 4),
             PrinAxCryst=PASCal._legacy.Round(PrinAxCryst, 4),
-            TPx=TPx,
-            DiagStrain=PASCal._legacy.Round(DiagStrain * percent, 4),
+            TPx=x,
+            DiagStrain=PASCal._legacy.Round(diagonal_strain * PERCENT, 4),
             XCal=PASCal._legacy.Round(XCal, 4),
-            Vol=PASCal._legacy.Round(Vol, 4),
+            Vol=PASCal._legacy.Round(cell_volumes, 4),
             VolLin=PASCal._legacy.Round(VolLin, 4),
             VolCoef=PASCal._legacy.Round(VolCoef, 4),
             VolCoefErr=PASCal._legacy.Round(VolCoefErr, 4),
-            TPxError=TPxError,
-            Latt=Latt,
+            TPxError=x_errors,
+            Latt=unit_cells,
         )
+        return response
 
-    if DataType == "Pressure":
+    if options.data_type == PASCalDataType.PRESSURE:
         return render_template(
             "pressure.html",
             config=config,
@@ -1255,11 +1332,11 @@ def output():
             CalNu=PASCal._legacy.Round(CalNu, 4),
             StrainHeadings=StrainHeadings,
             InputHeadings=InputHeadings,
-            data=data,
+            data=raw_data,
             Axes=Axes,
             PrinComp=PASCal._legacy.Round(PrinComp, 4),
             KErr=PASCal._legacy.Round(KErr, 4),
-            u=u,
+            u=median_x,
             MedianPrinAxCryst=PASCal._legacy.Round(MedianPrinAxCryst, 4),
             PrinAxCryst=PASCal._legacy.Round(PrinAxCryst, 4),
             BMCoeffHeadings=BMCoeffHeadings,
@@ -1273,20 +1350,20 @@ def output():
             PcCoef=PASCal._legacy.Round(PcCoef, 4),
             KHeadings=KHeadings,
             K=PASCal._legacy.Round(K, 4),
-            TPx=TPx,
-            DiagStrain=PASCal._legacy.Round(DiagStrain * percent, 4),
+            TPx=x,
+            DiagStrain=PASCal._legacy.Round(diagonal_strain * PERCENT, 4),
             XCal=PASCal._legacy.Round(XCal, 4),
             VolPressHeadings=VolPressHeadings,
-            Vol=PASCal._legacy.Round(Vol, 4),
+            Vol=PASCal._legacy.Round(cell_volumes, 4),
             VolCoef=PASCal._legacy.Round(VolCoef, 4),
             VolCoefErr=PASCal._legacy.Round(VolCoefErr, 4),
             CalPress=PASCal._legacy.Round(CalPress, 4),
-            UsePc=UsePc,
-            TPxError=TPxError,
-            Latt=Latt,
+            UsePc=options.use_pc,
+            TPxError=x_errors,
+            Latt=unit_cells,
         )
 
-    if DataType == "Electrochemical":
+    if options.data_type == PASCalDataType.ELECTROCHEMICAL:
         return render_template(
             "electrochem.html",
             config=config,
@@ -1297,24 +1374,24 @@ def output():
             PlotResidualJSON=ResidualJSON,
             PlotIndicJSON=IndicatrixJSON,
             QPrimeHeadings=QPrimeHeadings,
-            data=data,
+            data=raw_data,
             MedianPrinAxCryst=PASCal._legacy.Round(MedianPrinAxCryst, 4),
             PrinAxCryst=PASCal._legacy.Round(PrinAxCryst, 4),
-            TPx=TPx,
+            TPx=x,
             Axes=Axes,
-            PrinComp=np.round(PrinComp, 4),
+            PrinComp=PASCal._legacy.Round(PrinComp, 4),
             StrainHeadings=StrainHeadings,
-            DiagStrain=np.round(DiagStrain * percent, 4),
+            DiagStrain=PASCal._legacy.Round(diagonal_strain * PERCENT, 4),
             XCal=PASCal._legacy.Round(XCal, 4),
             DerHeadings=DerHeadings,
-            Vol=PASCal._legacy.Round(Vol, 4),
+            Vol=PASCal._legacy.Round(cell_volumes, 4),
             Deriv=PASCal._legacy.Round(Deriv, 4),
             VolElecHeadings=VolElecHeadings,
             VolCheb=PASCal._legacy.Round(VolCheb, 4),
             VolCoef=PASCal._legacy.Round(VolCoef, 4),
             InputHeadings=InputHeadings,
-            TPxError=TPxError,
-            Latt=PASCal._legacy.Round(Latt, 4),
+            TPxError=x_errors,
+            Latt=PASCal._legacy.Round(unit_cells, 4),
         )
 
 
