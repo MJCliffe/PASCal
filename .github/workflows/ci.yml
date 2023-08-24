@@ -1,9 +1,5 @@
 name: CI tests
 
-env:
-  GIT_USER_NAME: Matthew Cliffe
-  GIT_USER_EMAIL: "dev@optimade.org"
-
 on:
   pull_request:
   push:
