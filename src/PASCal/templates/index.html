@@ -3,6 +3,9 @@
     <title>PASCal</title>
     <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='PASCal_icon.png') }}" />
     <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
 </head>
 <html>
    <body>
@@ -11,9 +14,11 @@
           <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
           <h1 class="big_title">A web tool for Principal Axis Strain Calculations</h1>
           <div class = "info">
-            <a class="link" href="https://github.com/MJCliffe/PASCal">Readme on GitHub</a>            
-            <br />
-            Hints available on mouseover.
+            <a class="link" href="https://github.com/MJCliffe/PASCal"><i class="fa-brands fa-github"></i> README on GitHub</a>
+            <div class="tooltip">
+                Hints available on mouseover.
+                <span class="tooltiptext">Hoverable titles will have wavy underlines.</span>
+            </div>
           </div>
           <form method="post" action="{{url_for('output')}}">
             <div class="input_area">
@@ -281,11 +286,11 @@ https://pubs.acs.org/doi/10.1021/acs.chemmater.9b00140 \n\
             </script>
           </div> 
           <div class = "option">
-        Developed by Monthakan Lertkiattrakul and <a class="link" href="https://cliffe.nottingham.ac.uk/">Matthew Cliffe</a> at the University of Nottingham
+        Developed by Monthakan Lertkiattrakul and <a class="link" href="https://cliffe.nottingham.ac.uk/">Matthew Cliffe</a> at the University of Nottingham, with contributions from <a href="https://ml-evs.science">Matthew Evans</a>,
         based off the <a href="http://pascal.chem.ox.ac.uk/">original version</a> developed by Matthew Cliffe and <a href="http://goodwin.chem.ox.ac.uk/">Andrew Goodwin</a> at the University of Oxford.
-        The code and further information is available on <a class="link" href = "https://github.com/MJCliffe/PASCal">GitHub</a>, and bugs, errors or feature requests can also be <a href="https://github.com/MJCliffe/PASCal/blob/Live/CONTRIBUTING.md">submitted.</a> Additional comments please email Matthew.Cliffe[at]nottingham.ac.uk <br />
+        The code and further information is available on GitHub at <a class="link" href = "https://github.com/MJCliffe/PASCal"><i class="fa-brands fa-github"></i> MJCliffe/PASCal</a>, and bugs, errors or feature requests can also be <a href="https://github.com/MJCliffe/PASCal/blob/Live/CONTRIBUTING.md">submitted.</a> Additional comments please email Matthew.Cliffe[at]nottingham.ac.uk <br />
         Please cite <a class="link" href="http://dx.doi.org/10.1107/S0021889812043026">M.J. Cliffe and A.L. Goodwin, J. Appl. Cryst. (2012). 45, 1321-1329</a>.
-        The preprint is available at the <a class="link" href="http://arxiv.org/abs/1204.3007">arXiv</a>.
+        The preprint is available at <a class="link" href="http://arxiv.org/abs/1204.3007"><i class="ai ai-arxiv"></i>arXiv:1204.3007</a>.
           </div>
         </div>
     </main>
