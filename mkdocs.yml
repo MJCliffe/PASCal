@@ -1,0 +1,81 @@
+site_name: PASCal 
+site_description: Documentation for PASCal
+
+theme:
+  name: material
+  font:
+    features:
+      - content.code.copy
+  palette:
+    scheme: default
+    primary: brown
+    accent: red
+
+  font:
+    text: Source Sans Pro
+  favicon: ./src/PASCal/static/PASCal_icon.png
+  language: en
+  logo: ./src/PASCal/static/PASCal_icon.png
+  icon:
+    repo: fontawesome/brands/github
+
+repo_name: MJCliffe/PASCal
+repo_url: https://github.com/MJCliffe/PASCal
+
+docs_dir: "./docs"
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      # Allows mermaid code blocks to be rendered via mermaid.js
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed
+  - pymdownx.tasklist
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_root_full_path: true
+            show_object_full_path: false
+            show_category_heading: true
+            show_if_no_docstring: true
+            show_signature_annotations: true
+            show_source: true
+            show_bases: true
+            group_by_category: true
+            heading_level: 2
+            members_order: "source"
+            members: true
+            inherited_members: true
+            docstring_style: google
+            enable_inventory: false
+            filters:
+              - "!^_[^_]"
+              - "!__json_encoder__$"
+              - "!__all__$"
+              - "!__config__$"
+  - awesome-pages
+  - autorefs
+

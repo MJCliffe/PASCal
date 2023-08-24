@@ -40,6 +40,10 @@ h1 {
   background-color: red;
 }
 
+.tooltip {
+  text-decoration: underline wavy lightblue;
+}
+
 .tooltip .tooltiptext {
   visibility: hidden;
   background-color: #B3EEF7;

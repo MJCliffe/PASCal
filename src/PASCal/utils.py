@@ -24,10 +24,10 @@ def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
 
 def orthomat(lattices: np.ndarray) -> np.ndarray:
     """Compute the corresponding change-of-basis transformations
-    (square matrix M) in E = M x A.
+    (square matrix $M$) in $E = M \\times A$.
 
     Parameters:
-        lattices: An Nx6 array of lattice parameters (a, b, c, α, β, γ)
+        lattices: An Nx6 array of lattice parameters $(a, b, c, α, β, γ)$
             in Å and degrees, respectively.
 
     Returns:
@@ -77,68 +77,75 @@ def cell_vols(lattices: np.ndarray) -> np.ndarray:
     )
 
 
-def empirical_p_T(
-    p_T: np.ndarray, ε_0: np.ndarray, λ_P: float, p_c: float, ν: float
+def empirical_p(
+    p: np.ndarray, ε_c: np.ndarray, λ: float, p_c: float, nu: float
 ) -> np.ndarray:
-    """Empirical fit for pressure input data.
+    """Empirical strain fit for pressure-dependent input data, with free
+    parameters $\\lambda$ and $\\nu$:
+
+    $$
+    \\epsilon(p) = \\epsilon_c + \\lambda (p(T) - p_c)^\\nu
+    $$
 
     Parameters:
-        p_T: p(T) array of pressure data points,
-        ε_0: strain at critical pressure
-        λ_P: compressibility in (GPa^-nu)
+        p: array of pressure data points ($\\p$),
+        ε_c: strain at critical pressure ($\\epsilon_c$)
+        λ: compressibility in (GPa^-nu) ($\\lambda$)
         p_c: critical pressure (GPa)
-        ν: rate of stiffening (0.5)
+        nu: rate of stiffening ($\\nu\\sim 0.5$)
 
     Returns:
         The strain at each pressure point.
 
     """
-    return ε_0 + (λ_P * ((p_T - p_c) ** ν))
+    return ε_c + (λ * ((p - p_c) ** nu))
 
 
-def compressibility(p_T: np.ndarray, λ_P: float, p_c: float, ν: float) -> np.ndarray:
-    """Calculate the compressibility from the derivative -(dε/dp)_T.
+def compressibility(p: np.ndarray, λ: float, p_c: float, nu: float) -> np.ndarray:
+    """Calculate the compressibility from the derivative
+    $-\\left(\\frac{\\mathrm{d}ε}{\\mathrm{d}p}\\right)_T$
 
     Parameters:
-        p_T: p(T) array of pressure data points,
-        λ_P: compressibility in (GPa^-nu)
+        p: array of pressure data points,
+        λ: compressibility in (GPa^-nu)
         p_c: critical pressure (GPa)
-        ν: rate of stiffening (0.5)
+        nu: rate of stiffening (0.5)
 
     Returns:
         The compressibility at each pressure point.
 
     """
 
-    return -λ_P * ν * ((p_T - p_c) ** (ν - 1))
+    return -λ * nu * ((p - p_c) ** (nu - 1))
 
 
 def compressibility_errors(
-    p_cov: np.ndarray, p_T: np.ndarray, λ_P: float, p_c: float, ν: float
+    p_cov: np.ndarray, p: np.ndarray, λ: float, p_c: float, nu: float
 ) -> np.ndarray:
     """Calculate errors in compressibilities.
 
     Parameters:
         p_cov: the estimated covariance of optimal values of the empirical parameters
-        p_T: p(T) array of pressure data points (,
-        λ_P: compressibility in (GPa^-nu)
+        p: array of pressure data points,
+        λ: compressibility in (GPa^-nu)
         p_c: critical pressure (GPa)
-        ν: rate of stiffening (0.5)
+        nu: rate of stiffening (0.5)
 
     Returns:
         The error in compressibility at each pressure point.
 
     """
 
-    J = np.zeros((4, p_T.shape[0]))  # jacobian matrix
-    J[1] = ((p_T - p_c) ** (ν - 1)) * ν
-    J[2] = -1 * λ_P * ν * (ν - 1) * (p_T - p_c) ** (ν - 2)
-    J[3] = (ν * np.log(p_T - p_c) + 1) * ((p_T - p_c) ** (ν - 1)) * λ_P
+    J = np.zeros((4, p.shape[0]))  # jacobian matrix
+    J[1] = ((p - p_c) ** (nu - 1)) * nu
+    J[2] = -1 * λ * nu * (nu - 1) * (p - p_c) ** (nu - 2)
+    J[3] = (nu * np.log(p - p_c) + 1) * ((p - p_c) ** (nu - 1)) * λ
     return np.sqrt(np.sum(np.dot(J, p_cov) * J, axis=0))
 
 
-def eta(V: np.ndarray, V_0: float) -> float:
-    """Defining parameter to be used in Birch-Murnaghan equations of state.
+def eta(V: np.ndarray, V_0: float) -> np.ndarray:
+    """Defining parameter to be used in Birch-Murnaghan equations of state,
+    $\\eta = (V_0 / V)^{1/3}$
 
     Parameters:
         V: unit-cell volume at a pressure point in Å³.
@@ -150,10 +157,12 @@ def eta(V: np.ndarray, V_0: float) -> float:
     return np.abs(V_0 / V) ** (1 / 3)
 
 
-def birch_murnaghan_2nd(V: np.ndarray, V_0: float, B: float):
+def birch_murnaghan_2nd(V: np.ndarray, V_0: float, B: float) -> np.ndarray:
     """The second-order Birch-Murnaghan fit corresponding the equation of state:
 
-       p(V) = (3 B / 2) [η⁷ - η⁵]
+    $$
+    p(V) = \\left(\\frac{3 B}{2}\\right) [η⁷ - η⁵]
+    $$
 
     Parameters:
         V: unit-cell volume at a pressure point in Å³.
@@ -167,10 +176,14 @@ def birch_murnaghan_2nd(V: np.ndarray, V_0: float, B: float):
     return (3 / 2) * B * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)
 
 
-def birch_murnaghan_3rd(V: np.ndarray, V_0: float, B_0: float, Bprime: float):
+def birch_murnaghan_3rd(
+    V: np.ndarray, V_0: float, B_0: float, Bprime: float
+) -> np.ndarray:
     """The third-order Birch-Murnaghan fit corresponding to the equation of state:
 
-       p(V) = (3 B_0 / 2) [η⁷ - η⁵] * [1 + (3(Bprime - 4)/4)[η² - 1]]
+    $$
+    p(V) = \\left(\\frac{3 B_0}{2}\\right) [η⁷ - η⁵] * \\left[1 + \\left(\\frac{3(B' - 4)}{4}\\right)[η² - 1]\\right]
+    $$
 
     Parameters:
         V: unit-cell volume at a pressure point in Å³.
@@ -193,14 +206,16 @@ def birch_murnaghan_3rd(V: np.ndarray, V_0: float, B_0: float, Bprime: float):
 
 def birch_murnaghan_3rd_pc(
     V: np.ndarray, V_0: float, B_0: float, Bprime: float, p_c: float
-):
+) -> np.ndarray:
     """The third-order Birch-Murnaghan fit corresponding the equation of state
     with incorporation of non-zero critical pressure:
 
-        p(V) = η⁵ * [p_c - 1/2(3B_0 - 5 p_c)(1 - η²) + (9/8) B_0 (B' - 4 + 35 p_c/(9 B_0))(1 - η²)²]
+    $$
+    p(V) = η⁵ * \\left[p_c - \\frac{1}{2}(3 B_0 - 5 p_c)(1 - η²) + \\frac{9}{8} B_0 \\left(B' - 4 + \\frac{35 p_c}{9 B_0}\\right)(1 - η²)²\\right]
+    $$
 
     from Sata et al, 10.1103/PhysRevB.65.104114 (2002) and Eq. 11
-    from Cliffe & Goodwin https://doi.org/10.1107/S0021889812043026 (2012).
+    from Cliffe & Goodwin 10.1107/S0021889812043026 (2012).
 
     Parameters:
         V: unit-cell volume at a pressure point in Å³.
@@ -229,7 +244,7 @@ def normalise_crys_axes(
 
     Parameters:
         calc_crys_ax: calculated crysallographic axes
-        princical_components: eigenvalues
+        principal_components: eigenvalues
 
     Returns:
         Normalised crysallographic axes
@@ -250,7 +265,7 @@ def indicatrix(
 
     Returns:
         Index of the maximum prinicpal component, and
-            R, X, Y, Z coordinates for the indicatrix plot.
+            $(R, X, Y, Z)$ coordinates for the indicatrix plot.
 
     """
     theta, phi = np.linspace(0, np.pi, 100), np.linspace(0, 2 * np.pi, 2 * 100)
