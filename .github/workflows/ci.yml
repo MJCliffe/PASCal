@@ -34,6 +34,10 @@ jobs:
       run: |
         poetry run pytest
 
+    - name: Build docs
+      run : |
+        poetry run mkdocs build --strict
+
     - name: Lock dependencies and prepare deployment
       run: |
         # Azure expects to find the app, requirements and any static files at the top-level
