@@ -1,5 +1,9 @@
 name: CI tests
 
+env:
+  GIT_USER_NAME: Matthew Cliffe
+  GIT_USER_EMAIL: "dev@optimade.org"
+
 on:
   pull_request:
   push:
@@ -56,6 +60,16 @@ jobs:
         path: |
           .
           !venv/
+          !site/
+          !docs/
+          !tests/
+    
+    - name: Upload docs artifact 
+      uses: actions/upload-artifact@v3
+      with:
+        name: github-pages
+        path: |
+          ./site/
 
   deploy:
     if: ${{github.repository == 'MJCliffe/PASCal' && github.event_name == 'push' }}
@@ -80,3 +94,19 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_TEST_WEBAPP_PUBLISH_PROFILE }}
+
+  deploy_docs:
+
+    if: ${{github.repository == 'MJCliffe/PASCal' && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    needs: tests
+    environment:
+      name: "Latest documentation"
+      url: https://mjcliffe.github.io/PASCal
+    
+    steps:
+    - name: Deploy docs
+      uses: actions/deploy-pages@v2
