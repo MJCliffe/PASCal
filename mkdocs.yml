@@ -13,9 +13,9 @@ theme:
 
   font:
     text: Source Sans Pro
-  favicon: src/PASCal/static/PASCal_icon.png
+  favicon: ./src/PASCal/static/PASCal_icon.png
   language: en
-  logo: src/PASCal/static/PASCal_icon.png
+  logo: ./src/PASCal/static/PASCal_icon.png
   icon:
     repo: fontawesome/brands/github
 
