@@ -3,7 +3,6 @@ from PASCal.utils import (
     round_array,
     orthomat,
     cell_vols,
-    compressibility_errors,
 )
 from PASCal._legacy import Round, Orthomat, CellVol, CompErr, NormCRAX
 import numpy as np
