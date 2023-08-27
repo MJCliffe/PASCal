@@ -1,19 +1,15 @@
 from typing import Tuple, List
 import json
 import os
-import itertools
 
 import PASCal._legacy
 import PASCal.utils
+from PASCal.fitting import fit_linear_wls, fit_empirical, fit_chebyshev
 from PASCal.constants import PERCENT, K_to_MK, GPa_to_TPa, mAhg_to_kAhg
 from PASCal.options import Options, PASCalDataType
+from PASCal.plotting import plot_strain, plot_volume
 
 from flask import Flask, render_template, request, send_from_directory
-import plotly
-import plotly.graph_objs as go
-import plotly.subplots
-import statsmodels.api as sm
-
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -144,23 +140,9 @@ def fit(x, x_errors, unit_cells, options, raw_data):
     median_x = int(np.ceil(len(x) / 2)) - 1  # median
 
     ### Axes matching
-    for n in range(2, len(unit_cells)):
-        Match = np.dot(
-            principal_axes[1, :].T, principal_axes[n, :]
-        )  # an array matching the axes against each other
-        AxesOrder = np.zeros(
-            (3), dtype=np.int8
-        )  # a list of the axes needed to convert the eigenvalues and vectors into a consistent format
-        TestAxesOrder = np.zeros((6))  # cost function for each item
-        permute = list(itertools.permutations([0, 1, 2]))  # all orders
-        m = 0
-        for item in permute:
-            for i in range(3):
-                TestAxesOrder[m] += np.abs(Match[i][item[i]])
-            m = m + 1
-        AxesOrder = np.array(permute[np.argmax(TestAxesOrder)])
-        diagonal_strain[n, [0, 1, 2]] = diagonal_strain[n, AxesOrder]
-        principal_axes[n, :, [0, 1, 2]] = principal_axes[n, :, AxesOrder]
+    principal_axes, diagonal_strain = PASCal.utils.match_axes(
+        principal_axes, unit_cells, diagonal_strain
+    )
 
     ### Calculating Eigenvectors and Cells in different coordinate systems
     PrinAxCryst = np.transpose(
@@ -172,222 +154,29 @@ def fit(x, x_errors, unit_cells, options, raw_data):
     PrinAxCryst = (
         PrinAxCryst.T / (np.sum(PrinAxCryst**2, axis=2) ** 0.5).T
     ).T  # normalised to make UVW near 1
+
     ### Ensures the largest component of each eigenvector is positive to make comparing easier
     MaxAxis = np.argmax(
         np.abs(PrinAxCryst), axis=2
     )  # find the largest value of each eigenvector
     I, J = np.indices(MaxAxis.shape)
     Mask = PrinAxCryst[I, J, MaxAxis] < 0
-    PrinAxCryst[Mask, :] = PrinAxCryst[Mask, :] * -1
+    PrinAxCryst[Mask, :] *= -1
     # transpositions to take advantage of broadcasting, not maths
     MedianPrinAxCryst = PrinAxCryst[median_x]
 
-    ####
     ## Linear fitting of volume and lattice parameters
-    ## Linear strain fitting
-    CalAlpha = np.zeros(3)
-    CalAlphaErr = np.zeros(3)
-    CalYInt = np.zeros(3)
-    XCal = np.zeros((3, len(x)))
-    for i in range(3):
-        X = sm.add_constant(x)
 
-        StrainModel = sm.WLS(
-            diagonal_strain[:, i], X, weights=1 / x_errors
-        )  # weighted least square
-        StrainResults = StrainModel.fit()
-        CalAlpha[i] = StrainResults.params[1]
-        CalYInt[i] = StrainResults.params[0]
-        CalAlphaErr[i] = StrainResults.HC0_se[1]
-        XCal[i] = (CalAlpha[i] * x + CalYInt[i]) * PERCENT  # for output
-
-    ## Volume fitting
-    X = sm.add_constant(x)
-    VolModel = sm.WLS(cell_volumes, X, weights=1 / x_errors)  # weighted least squares
-    VolResults = VolModel.fit()
-    VolGrad = VolResults.params[1]
-    VolYInt = VolResults.params[0]
-    VolGradErr = VolResults.HC0_se[1]
-    VolLin = x * VolGrad + VolYInt
-
-    # X = sm.add_constant(Vol)
-    # VolModel = sm.WLS(TPx,X,weights=1/TPxError) #weighted least squares backward <- this doesn't really make sense
-    # VolResults = VolModel.fit()
-    # VolGrad = 1/VolResults.params[1]
-    # VolYInt = -1*VolResults.params[0]/VolResults.params[1]
-    # VolGradErr = VolResults.HC0_se[1]/VolResults.params[1]/VolResults.params[1]
-    # VolLin = TPx*VolGrad+VolYInt
-
-    ## Plotting
-    Colour = ["Red", "Green", "Blue"]  # standard axes colours
-    StrainLabel = ["\u03B5<sub>1</sub>", "\u03B5<sub>2</sub>", "\u03B5<sub>3</sub>"]
-    StrainFitLabel = [
-        "\u03B5<sub>1,calc</sub>",
-        "\u03B5<sub>2,calc</sub>",
-        "\u03B5<sub>3,calc</sub>",
-    ]
-    PlotWidth = 500
-    PlotHeight = 500
-    PlotMargin = dict(t=50, b=50, r=50, l=50)
-
-    ## For each data type plot and do some additional fitting
     if options.data_type == PASCalDataType.TEMPERATURE:
-        ### headings for tables
-        TPxLabel = "T(K)"
-        CoeffThermHeadings = [
-            "Axes",
-            "\u03C3 (MK\u207b\u00B9)",
-            "\u03C3\u03C3 (MK{SUPERSCRIPT ONE})",
-            "a",
-            "b",
-            "c",
-        ]
-        VolTempHeadings = [TPxLabel, "V (A^3)", "VLin (A^3)"]
-
-        ### unit conversions
-        VolCoef = VolGrad / cell_volumes[0] * K_to_MK
-        VolCoefErr = VolGradErr / cell_volumes[0] * K_to_MK
-        PrinComp = CalAlpha * K_to_MK
-
-        ### Strain Plot
-        FigStrain = go.Figure()
-        for i in range(3):
-            ### Temperature (K) vs strain (PERCENTage) graph along each axis
-            FigStrain.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=diagonal_strain[:, i] * PERCENT,
-                    name=StrainLabel[i],
-                    mode="markers",
-                    marker_symbol="circle-open",
-                    marker=dict(color=Colour[i]),
-                )
-            )  # strain data
-            FigStrain.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=(CalAlpha[i] * x + CalYInt[i]) * PERCENT,
-                    name=StrainFitLabel[i],
-                    mode="lines",
-                    line=dict(color=Colour[i]),
-                )
-            )  # strain linear fit
-
-        FigStrain.update_xaxes(
-            title_text="Temperature (K)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        FigStrain.update_yaxes(
-            title_text="Relative change in <br> principal axis length (%)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        FigStrain.add_hline(y=0, row=1, col=1)  # the horizontal line along the x axis
-
-        FigStrain.update_layout(
-            autosize=False,
-            width=PlotWidth,
-            height=PlotHeight,
-            margin=PlotMargin,
-            showlegend=True,
-            hovermode="x unified",
-            plot_bgcolor="white",
-        )
-
-        ### Volume Plot
-        FigVolume = go.Figure()
-        FigVolume.add_trace(
-            go.Scatter(
-                x=x,
-                y=cell_volumes,
-                name="V",
-                mode="markers",
-                marker_symbol="circle-open",
-                marker=dict(color="Black"),
-            )
-        )
-        FigVolume.add_trace(
-            go.Scatter(
-                x=x,
-                y=VolLin,
-                name="V<sub>lin</sub>",
-                mode="lines",
-                line=dict(color="Black"),
-            )
-        )  # linear fit for volume
-        FigVolume.update_xaxes(
-            title_text="Temperature (K)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        FigVolume.update_yaxes(
-            title_text="V (\u212B<sup>3</sup>)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        FigVolume.update_layout(
-            autosize=False,
-            width=PlotWidth,
-            height=PlotHeight,
-            margin=PlotMargin,
-            showlegend=True,
-            hovermode="x unified",
-            plot_bgcolor="white",
-        )
-
-        StrainJSON = json.dumps(FigStrain, cls=plotly.utils.PlotlyJSONEncoder)
-        VolumeJSON = json.dumps(FigVolume, cls=plotly.utils.PlotlyJSONEncoder)
+        strain_fits = PASCal.utils.fit_linear_wls(diagonal_strain, x, x_errors)
+        volume_fits = PASCal.utils.fit_linear_wls(cell_volumes, x, x_errors)
+    elif options.data_type == PASCalDataType.PRESSURE:
+        # do BM fits
+        strain_fits = PASCal.utils.fit_bm(diagonal_strain, x, x_errors)
+    elif options.data_type == PASCALDataType.ELECTROCHEMICAL:
+        # do chebyshev fits
 
     if options.data_type == PASCalDataType.PRESSURE:
-        ###Headings for tables
-        TPxLabel = "P(GPa)"
-        KEmpHeadings = [
-            "Axes",
-            "K(TPa-1)",
-            "\u03C3K(TPa-1)",
-            "a",
-            "b",
-            "c",
-            "\u03B5",
-            "\u03BB",
-            "Pc",
-            "\u03BD",
-        ]
-        KLabel = ["K<sub>1</sub>", "K<sub>2</sub>", "K<sub>3</sub>"]
-        BMCoeffHeadings = [
-            "",
-            "B0 (GPa)",
-            "\u03C3B0(GPa)",
-            "V0(A^3)",
-            "\u03C3V0(A^3)",
-            "B'",
-            "\u03C3B'",
-            "Pc(GPa)",
-        ]
-        BMOrder = ["2nd", "3rd"]
-        KHeadings = ["P", "K1", "K2", "K3", "\u03C3K1", "\u03C3K2", "\u03C3K3"]
-        VolPressHeadings = [TPxLabel, "PLin", "PCalc,2nd", "P3rd", "V (A^3)"]
-
-        if options.use_pc:  ## if a critical pressure is USED
-            BMOrder.append("3rd with Pc")
-            VolPressHeadings = [
-                TPxLabel,
-                "PLin",
-                "PCalc,2nd",
-                "P3rd",
-                "P3rd+Pc",
-                "V (A^3)",
-            ]
-
         ### Unit conversion?
         CalEmPopt = np.zeros((3, 4))  # optimised empirical parameters
         CalEmPcov = np.zeros((3, 4, 4))  # the estimated covariance of CalEmPopt
@@ -1200,7 +989,7 @@ def fit(x, x_errors, unit_cells, options, raw_data):
 
     ####
     ## settings for plotly plots
-    config = json.dumps(
+    plotly_config = json.dumps(
         {
             "displaylogo": False,
             "responsive": True,
@@ -1211,12 +1000,15 @@ def fit(x, x_errors, unit_cells, options, raw_data):
         }
     )
 
+    plot_strain(x, diagonal_strain, strain_fits, options.data_type)
+    plot_volume(x, cell_volumes, volume_fits, options.data_type)
+
     ## return the data to the page ##return every plots with all the names then if else for each input in HTML
 
     if options.data_type == PASCalDataType.TEMPERATURE:
         response = render_template(
             "temperature.html",
-            config=config,
+            config=plotly_config,
             warning=warning,
             PlotStrainJSON=StrainJSON,
             PlotVolumeJSON=VolumeJSON,
@@ -1246,7 +1038,7 @@ def fit(x, x_errors, unit_cells, options, raw_data):
     if options.data_type == PASCalDataType.PRESSURE:
         return render_template(
             "pressure.html",
-            config=config,
+            config=plotly_config,
             warning=warning,
             PlotStrainJSON=StrainJSON,
             PlotDerivJSON=DerivJSON,
@@ -1293,7 +1085,7 @@ def fit(x, x_errors, unit_cells, options, raw_data):
     if options.data_type == PASCalDataType.ELECTROCHEMICAL:
         return render_template(
             "electrochem.html",
-            config=config,
+            config=plotly_config,
             warning=warning,
             PlotStrainJSON=StrainJSON,
             PlotDerivJSON=DerivJSON,

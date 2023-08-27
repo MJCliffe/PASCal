@@ -1,5 +1,8 @@
 import numpy as np
 from typing import Union, Tuple
+import itertools
+import statsmodels.api as sm
+from PASCal.constants import PERCENT
 
 
 def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
@@ -78,18 +81,18 @@ def cell_vols(lattices: np.ndarray) -> np.ndarray:
 
 
 def empirical_p(
-    p: np.ndarray, ε_c: np.ndarray, λ: float, p_c: float, nu: float
+    p: np.ndarray, ε_0: np.ndarray, λ: float, p_c: float, nu: float
 ) -> np.ndarray:
     """Empirical strain fit for pressure-dependent input data, with free
     parameters $\\lambda$ and $\\nu$:
 
     $$
-    \\epsilon(p) = \\epsilon_c + \\lambda (p(T) - p_c)^\\nu
+    \\epsilon(p) = \\epsilon_0 + \\lambda (p(T) - p_c)^\\nu
     $$
 
     Parameters:
         p: array of pressure data points ($\\p$),
-        ε_c: strain at critical pressure ($\\epsilon_c$)
+        ε_0: strain at critical pressure ($\\epsilon_0$)
         λ: compressibility in (GPa^-nu) ($\\lambda$)
         p_c: critical pressure (GPa)
         nu: rate of stiffening ($\\nu\\sim 0.5$)
@@ -98,7 +101,7 @@ def empirical_p(
         The strain at each pressure point.
 
     """
-    return ε_c + (λ * ((p - p_c) ** nu))
+    return ε_0 + (λ * ((p - p_c) ** nu))
 
 
 def compressibility(p: np.ndarray, λ: float, p_c: float, nu: float) -> np.ndarray:
@@ -319,3 +322,28 @@ def calculate_strain(
         strain = (strain + np.transpose(strain, axes=[0, 2, 1])) / 2
 
     return strain
+
+
+def match_axes(
+    principal_axes: np.ndarray, unit_cells: np.ndarray, diagonal_strain: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Matches the axes of the principal components to the first unit cell."""
+
+    # TODO: why 1-indexed?
+    for n in range(2, len(unit_cells)):
+        # an array matching the axes against each other
+        match = np.dot(principal_axes[1, :].T, principal_axes[n, :])
+        # a list of the axes needed to convert the eigenvalues and vectors into a consistent format
+        axes_order = np.zeros((3), dtype=np.int8)
+        axes_order_cost = np.zeros((6))  # cost function for each item
+        permute = list(itertools.permutations([0, 1, 2]))
+        m = 0
+        for item in permute:
+            for i in range(3):
+                axes_order_cost[m] += np.abs(match[i][item[i]])
+            m += 1
+        axes_order = np.array(permute[np.argmax(axes_order_cost)])
+        diagonal_strain[n, [0, 1, 2]] = diagonal_strain[n, axes_order]
+        principal_axes[n, :, [0, 1, 2]] = principal_axes[n, :, axes_order]
+
+    return principal_axes, diagonal_strain
