@@ -1,0 +1,5 @@
+nav:
+    - core.md
+    - fitting.md
+    - options.md
+    - "Utilities": utils.md
