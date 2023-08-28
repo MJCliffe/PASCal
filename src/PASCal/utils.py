@@ -1,3 +1,5 @@
+"""A series of utility functions used in the operation of PASCal."""
+
 import numpy as np
 from typing import Union, Tuple
 import itertools

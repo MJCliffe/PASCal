@@ -5,11 +5,16 @@ import plotly
 import plotly.graph_objs as go
 import plotly.subplots
 import numpy as np
-import statsmodels.api as sm
 
 from PASCal.options import PASCalDataType
-from PASCal.constants import K_to_MK, PERCENT
-from PASCal.utils import Pressure, Temperature, Charge, Strain, Volume
+from PASCal.constants import PERCENT
+from PASCal.utils import (
+    Pressure,
+    Temperature,
+    Charge,
+    Strain,
+    Volume,
+)
 
 PLOT_WIDTH: int = 500
 PLOT_HEIGHT: int = 500
@@ -30,6 +35,15 @@ PLOT_X_LABELS = {
     PASCalDataType.TEMPERATURE: "Temperature (K)",
     PASCalDataType.PRESSURE: "Pressure (GPa)",
     PASCalDataType.ELECTROCHEMICAL: "Charge (mAhg<sup>-1</sup>)",
+}
+
+PLOTLY_CONFIG = {
+    "displaylogo": False,
+    "responsive": True,
+    "toImageButtonOptions": {
+        "format": "png",  # one of png, svg, jpeg, webp
+        "scale": 5,  # change resolution of image
+    },
 }
 
 
@@ -130,7 +144,7 @@ def plot_strain(
     )
 
     if return_json:
-        json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
     return figure
 
 
@@ -138,7 +152,7 @@ def plot_volume(
     x: Union[Pressure, Temperature, Charge],
     x_errors: Union[Pressure, Temperature, Charge],
     cell_volumes: Volume,
-    fit_result: Dict[str, Any],
+    fit_result: Union[Dict[str, Any], List[Any]],
     data_type: Union[PASCalDataType, str],
     show_errors: bool = False,
     return_json: bool = False,
@@ -164,21 +178,29 @@ def plot_volume(
 
     if data_type == PASCalDataType.TEMPERATURE:
         # use linear fit results
-        intercepts = fit_result["linear"].params[0]
+        intercept = fit_result["linear"].params[0]
         gradient = fit_result["linear"].params[1]
-        ys = gradient * x + intercept
+        ys = [gradient * x + intercept]
         xs = x
+        labels = ["V<sub>lin</sub>"]
     elif data_type == PASCalDataType.PRESSURE:
-        # use empirical fit results
-        popts, _, fns = fit_result["empirical"]
+        # use BM fit results
         xs = np.linspace(x[0], x[-1], num=1000)
-        ys = fns(xs, *popts)
+        ys = []
+        labels = []
+        for fn in fit_result:
+            if fn == "linear":
+                continue
+            popts, _ = fit_result[fn]
+            ys.append(fn(xs, *popts))
+            labels.append(f"V<sub>{fn}</sub>")
     elif data_type == PASCalDataType.ELECTROCHEMICAL:
         # use chebyshev fits
         coeffs, _ = fit_result["chebyshev"]
-        fns = [np.polynomial.chebyshev.Chebyshev(coeffs[i]) for i in range(3)]
+        fns = np.polynomial.chebyshev.Chebyshev(coeffs)
         xs = x
-        ys = fns(xs)
+        ys = [fns(xs)]
+        labels = ["V<sub>cheb</sub>"]
 
     figure = go.Figure()
     figure.add_trace(
@@ -192,15 +214,16 @@ def plot_volume(
             marker=dict(color="Black"),
         )
     )
-    figure.add_trace(
-        go.Scatter(
-            x=xs,
-            y=ys,
-            name="V<sub>lin</sub>",
-            mode="lines",
-            line=dict(color="Black"),
+    for ind, label in enumerate(labels):
+        figure.add_trace(
+            go.Scatter(
+                x=xs,
+                y=ys[ind],
+                name=label,
+                mode="lines",
+                line=dict(color="Black" if len(labels) == 1 else PLOT_PALETTE[ind]),
+            )
         )
-    )
 
     figure.update_xaxes(
         title_text=PLOT_X_LABELS[data_type],
@@ -227,7 +250,7 @@ def plot_volume(
     )
 
     if return_json:
-        json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
     return figure
 
 

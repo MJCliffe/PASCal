@@ -1,7 +1,10 @@
+"""This module defines the core functionality of PASCal: the fit function and the results container."""
+
+import plotly.graph_objs
 from dataclasses import dataclass
-from typing import Union, List, Tuple, Any, Optional
+from typing import Union, List, Tuple, Any, Optional, Dict
 from PASCal.options import Options, PASCalDataType
-from PASCal.plotting import plot_strain, plot_volume
+from PASCal.plotting import plot_indicatrix, plot_strain, plot_volume
 from PASCal.utils import Strain, Pressure, Volume, Charge, Temperature
 from PASCal.constants import K_to_MK, GPa_to_TPa
 from PASCal.fitting import (
@@ -17,24 +20,70 @@ import numpy as np
 
 @dataclass
 class PASCalResults:
-    """A container for the results of a PASCal run."""
+    """A container for the results of a PASCal run, providing
+    convenience wrappers to all data objects and plotting functions.
+
+    """
 
     options: Options
-    x: Union[Pressure, Temperature, Charge]
-    x_errors: Union[Pressure, Temperature, Charge]
-    diagonal_strain: Strain
-    cell_volumes: Volume
-    principal_components: np.ndarray
-    indicatrix: Tuple
-    norm_crax: np.ndarray
-    median_x: int
-    strain_fits: List[Any]
-    volume_fits: List[Any]
-    compressibility: Optional[np.ndarray]
-    compressibility_errors: Optional[np.ndarray]
-    warning: List[str]
+    """The provided fit options."""
 
-    def plot_strain(self, return_json: bool = False, show_errors: bool = False):
+    x: Union[Pressure, Temperature, Charge]
+    """The input control variable $X$, either pressure, temperature or charge."""
+    x_errors: Union[Pressure, Temperature, Charge]
+    """The input errors on the control variable $X$, either pressure, temperature or charge."""
+
+    unit_cells: np.ndarray
+    """The input unit cells."""
+
+    diagonal_strain: Strain
+    """The diagonalised strain."""
+
+    cell_volumes: Volume
+    """The computed cell volumes."""
+
+    principal_components: np.ndarray
+    """The eigenvalues of the strain."""
+
+    indicatrix: Tuple
+    """The indicatrix data used to construct the surface plot."""
+
+    norm_crax: np.ndarray
+    """The normalised crystal axes."""
+
+    median_x: int
+    """The index of the middle value of the control variable $X$."""
+
+    median_principal_axis_crys: np.ndarray
+    """The median principal axis of the strain."""
+
+    principal_axis_crys: np.ndarray
+    """The principal axes of the strain."""
+
+    strain_fits: Dict[str, List[Any]]
+    """A dictionary containing the strain fits. Under each key is a list of fit models for each principal axis,
+    containing either a statsmodel fit result (temperature data), a tuple of `popt`, `pcov`, `callable` results from SciPy's `curve_fit` (pressure data),
+    or an array of Chebyshev coefficients from NumPy's `chebfit` (electrochemical data).
+    """
+    volume_fits: Dict[str, Any]
+    """A dictionary containing the volume fits. Under each key is a model for the cell volume,
+    containing either a statsmodel fit result, a tuple of `popt`, `pcov`, `callable` results from SciPy's `curve_fit`,
+    or an array of Chebyshev coefficients from NumPy's `chebfit`.
+    """
+
+    compressibility: Optional[np.ndarray]
+    """The computed compressibility."""
+
+    compressibility_errors: Optional[np.ndarray]
+    """The computed compressibility errors."""
+
+    warning: List[str]
+    """Any warnings generated during the fit."""
+
+    def plot_strain(
+        self, return_json: bool = False, show_errors: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
+        """Plots the strain fits."""
         return plot_strain(
             self.x,
             self.x_errors,
@@ -45,7 +94,9 @@ class PASCalResults:
             show_errors=show_errors,
         )
 
-    def plot_volume(self, return_json: bool = False, show_errors: bool = False):
+    def plot_volume(
+        self, return_json: bool = False, show_errors: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
         return plot_volume(
             self.x,
             self.x_errors,
@@ -56,61 +107,41 @@ class PASCalResults:
             show_errors=show_errors,
         )
 
+    def plot_indicatrix(
+        self, return_json: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
+        return plot_indicatrix(
+            self.norm_crax,
+            *self.indicatrix,
+            self.options.data_type,
+            return_json=return_json,
+        )
 
-def _precheck_inputs(x, options) -> Tuple[Options, List[str]]:
-    """Check that the raw data passed is compatible with the options, adjusting
-    the options where possible.
+
+def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults:
+    """Perform the PASCal fits for the given data.
+
+    For temperature data, linear models are fitted for strain vs temperature and volume
+    vs temperature.
+    For pressure data, an empirical fit is made for strain vs pressure, and
+    Birch-Murnaghan fits are made for volume vs pressure.
+    For electrochemical data, Chebyshev polynomials are fitted for strain vs state
+    of charge and volume vs state of charge.
+
+    Parameters:
+        x: The independent variable (pressure, temperature or charge).
+        x_errors: The errors on the independent variable.
+        unit_cells: The unit cell volumes.
+        options: The options for the fit.
 
     Returns:
-        The adjusted options and a list of warnings.
+        A PASCalResults object containing the results of the fit.
 
     """
-    if len(x) < 2:
-        raise RuntimeError("Too few data points to perform fit: need at least 2")
-
-    warning: List[str] = []
-
-    if options.data_type == PASCalDataType.PRESSURE:
-        if len(x) < 4:
-            warning.append(
-                "At least as many data points as parameters are needed for a fit to be carried out (e.g. 3 for 3rd order Birch-Murnaghan, 4 for empirical pressure fitting). "
-                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
-            )
-        if options.use_pc and options.pc_val:
-            if np.amin(x) < options.pc_val:
-                pc_val = np.min(x)
-                warning.append(
-                    "The critical pressure has to be smaller than the lower pressure data point. "
-                    f"Critical pressure has been set to the minimum value: {pc_val} GPa."
-                )
-                options.pc_val = pc_val
-
-    if options.data_type == PASCalDataType.ELECTROCHEMICAL:
-        if len(x) - 2 < options.deg_poly_strain:
-            deg_poly_strain = len(x) - 2
-            warning.append(
-                f"The maximum degree of the Chebyshev strain polynomial has been lowered from {options.deg_poly_strain} to {deg_poly_strain}. "
-                "At least as many data points as parameters are needed for a fit to be carried out. "
-                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
-            )
-            options.deg_poly_strain = deg_poly_strain
-        if len(x) - 2 < options.deg_poly_vol:
-            deg_poly_vol = len(x) - 2
-            warning.append(
-                f"The maximum degree of the Chebyshev volume polynomial has been lowered from {options.deg_poly_vol} to {deg_poly_vol}. "
-                "At least as many data points as parameters are needed for a fit to be carried out. "
-                "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
-            )
-            options.deg_poly_vol = deg_poly_vol
-
-    return options, warning
-
-
-def fit(x, x_errors, unit_cells, options: Union[Options, dict]):
     if not isinstance(options, Options):
         options = Options.from_dict(options)
 
-    options, warning = _precheck_inputs(x, options)
+    warning = options.precheck_inputs(x)
     print(f"Performing fit with {options=}")
     cell_volumes = PASCal._legacy.CellVol(unit_cells)
 
@@ -177,9 +208,8 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]):
             critical_pressure=options.pc_val if options.use_pc else None,
         )
 
-        bm_fits = ["bm2", "bm3", "bm3_pc"]
-        for popts, pcovs, key in zip(bm_popts, bm_pcovs, bm_fits):
-            volume_fits[key] = popts, pcovs
+        for k in bm_popts:
+            volume_fits[k] = bm_popts[k], bm_pcovs[k]
 
     elif options.data_type == PASCalDataType.ELECTROCHEMICAL:
         strain_fits["chebyshev"] = fit_chebyshev(
@@ -188,6 +218,14 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]):
             options.deg_poly_strain,
         )
         volume_fits["chebyshev"] = fit_chebyshev(cell_volumes, x, options.deg_poly_vol)
+
+        cheb_derivative = np.zeros((3, len(x)))
+        # for i in range(3):
+        # cheb_derivative[i] = np.polynomial.chebyshev.chebder(
+        #     strain_fits["chebyshev"][i][0], m=1, scl=1, axis=0
+        # )
+
+        principal_components = [cheb_derivative[i][median_x] for i in range(3)]
 
     norm_crax = PASCal.utils.normalise_crys_axes(
         crys_prin_ax[median_x, :, :], principal_components
@@ -198,6 +236,7 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]):
         options=options,
         x=x,
         x_errors=x_errors,
+        unit_cells=unit_cells,
         principal_components=principal_components,
         median_x=median_x,
         diagonal_strain=diagonal_strain,
@@ -206,6 +245,8 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]):
         volume_fits=volume_fits,
         indicatrix=indicatrix,
         norm_crax=norm_crax,
+        median_principal_axis_crys=median_principal_axis_crys,
+        principal_axis_crys=principal_axis_crys,
         warning=warning,
         compressibility=compressibility
         if options.data_type == PASCalDataType.PRESSURE

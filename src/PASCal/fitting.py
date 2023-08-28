@@ -1,3 +1,8 @@
+"""This module defines functions for linear, empirical or Chebyshev fitting to
+strain and volume data.
+
+"""
+
 from typing import List, Callable, Tuple, Union, Dict, Optional
 from functools import partial
 
@@ -48,7 +53,7 @@ def fit_chebyshev(
     y: Union[Strain, Volume],
     x: Charge,
     max_degree: int,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
     """Fit a Chebyshev polynomial to the passed y array of
     strains or volumes.
 
@@ -58,10 +63,10 @@ def fit_chebyshev(
         max_degree: The maximum degree of Chebyshev polynomial to fit.
 
     Returns:
-        The results of the fit.
+        A tuple containing arrays of the coefficients and residuals of the fit.
 
     """
-    coeffs, residuals, _, _, _ = np.polynomial.chebyshev.chebfit(
+    coeffs, (residuals, _, _, _) = np.polynomial.chebyshev.chebfit(
         x, y, max_degree, full=True
     )
     return coeffs, residuals
