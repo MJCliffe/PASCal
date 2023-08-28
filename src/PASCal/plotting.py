@@ -1,5 +1,4 @@
-from re import L
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 import json
 
 import plotly
@@ -10,6 +9,7 @@ import statsmodels.api as sm
 
 from PASCal.options import PASCalDataType
 from PASCal.constants import K_to_MK, PERCENT
+from PASCal.utils import Pressure, Temperature, Charge, Strain, Volume
 
 PLOT_WIDTH: int = 500
 PLOT_HEIGHT: int = 500
@@ -34,35 +34,50 @@ PLOT_X_LABELS = {
 
 
 def plot_strain(
-    x: np.ndarray,
-    diagonal_strain: np.ndarray,
-    fit_results: List[sm.regression.linear_model.RegressionResultsWrapper],
+    x: Union[Pressure, Temperature, Charge],
+    x_errors: Union[Pressure, Temperature, Charge],
+    diagonal_strain: Strain,
+    fit_results: Dict[str, Any],
     data_type: Union[PASCalDataType, str],
+    show_errors: bool = False,
     return_json: bool = False,
 ) -> Union[go.Figure, str]:
     """Plot strain (%) against the fitted data in the 3 principal directions.
 
     Parameters:
         x: Array containing the control variable.
+        x_errors: Array containing the errors in the control variable.
         diagonal_strain: The array of diagonal strains.
         fit_results: A list of statsmodel linear regression results for each direction.
         data_type: The PASCalDataType corresponding to the identity of the control variable.
+        show_errors: Whether to show error bars on the plot.
+        return_json: Whether to return the JSON dump of the plotly figure.
 
     Returns:
         JSON dump of the plotly figure if return_json, else return the plotly figure.
 
     """
 
-    if not len(fit_results) == 3:
-        raise RuntimeError(
-            "Expected 3 fitted models for strain plot, received {fit_results=}"
-        )
-
     if not isinstance(data_type, PASCalDataType):
         data_type = PASCalDataType[data_type.upper()]
 
-    intercept = [_.params[0] for _ in fit_results]
-    gradient = [_.params[1] for _ in fit_results]
+    if data_type == PASCalDataType.TEMPERATURE:
+        # use linear fit results
+        intercepts = [_.params[0] for _ in fit_results["linear"]]
+        gradients = [_.params[1] for _ in fit_results["linear"]]
+        ys = np.array([gradients[i] * x + intercepts[i] for i in range(3)])
+        xs = x
+    elif data_type == PASCalDataType.PRESSURE:
+        # use empirical fit results
+        popts, _, fns = fit_results["empirical"]
+        xs = np.linspace(x[0], x[-1], num=1000)
+        ys = np.array([fns(xs, *popts[i]) for i in range(3)])
+    elif data_type == PASCalDataType.ELECTROCHEMICAL:
+        # use chebyshev fits
+        coeffs, _ = fit_results["chebyshev"]
+        fns = [np.polynomial.chebyshev.Chebyshev(coeffs[i]) for i in range(3)]
+        xs = x
+        ys = np.array([fns[i](xs) for i in range(3)])
 
     figure = go.Figure()
     for i in range(3):
@@ -70,6 +85,7 @@ def plot_strain(
             go.Scatter(
                 x=x,
                 y=diagonal_strain[:, i] * PERCENT,
+                error_x=dict(type="data", array=x_errors, visible=show_errors),
                 name=PLOT_STRAIN_LABEL[i],
                 mode="markers",
                 marker_symbol="circle-open",
@@ -79,8 +95,8 @@ def plot_strain(
         # line plot of fit plot
         figure.add_trace(
             go.Scatter(
-                x=x,
-                y=(gradient[i] * x + intercept[i]) * PERCENT,
+                x=xs,
+                y=ys[i] * PERCENT,
                 name=PLOT_STRAIN_FIT_LABEL[i],
                 mode="lines",
                 line=dict(color=PLOT_PALETTE[i]),
@@ -119,19 +135,23 @@ def plot_strain(
 
 
 def plot_volume(
-    x: np.ndarray,
-    cell_volumes: np.ndarray,
-    fit_result: sm.regression.linear_model.RegressionResultsWrapper,
+    x: Union[Pressure, Temperature, Charge],
+    x_errors: Union[Pressure, Temperature, Charge],
+    cell_volumes: Volume,
+    fit_result: Dict[str, Any],
     data_type: Union[PASCalDataType, str],
+    show_errors: bool = False,
     return_json: bool = False,
 ) -> Union[go.Figure, str]:
     """Plot the cell volume fit.
 
     Parameters:
         x: Array containing the control variable.
+        x_errors: Array containing the errors in the control variable.
         cell_volumes: array of cell volumes.
         fit_results: A statsmodel linear regression result for the cell volume fit.
         data_type: The PASCalDataType corresponding to the identity of the control variable.
+        show_errors: Whether to show error bars on the plot.
         return_json: Whether or not to return the JSON dump of the figure.
 
     Returns:
@@ -142,14 +162,30 @@ def plot_volume(
     if not isinstance(data_type, PASCalDataType):
         data_type = PASCalDataType[data_type.upper()]
 
-    intercept = fit_result.params[0]
-    gradient = fit_result.params[1]
+    if data_type == PASCalDataType.TEMPERATURE:
+        # use linear fit results
+        intercepts = fit_result["linear"].params[0]
+        gradient = fit_result["linear"].params[1]
+        ys = gradient * x + intercept
+        xs = x
+    elif data_type == PASCalDataType.PRESSURE:
+        # use empirical fit results
+        popts, _, fns = fit_result["empirical"]
+        xs = np.linspace(x[0], x[-1], num=1000)
+        ys = fns(xs, *popts)
+    elif data_type == PASCalDataType.ELECTROCHEMICAL:
+        # use chebyshev fits
+        coeffs, _ = fit_result["chebyshev"]
+        fns = [np.polynomial.chebyshev.Chebyshev(coeffs[i]) for i in range(3)]
+        xs = x
+        ys = fns(xs)
 
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
             x=x,
             y=cell_volumes,
+            error_x=dict(type="data", array=x_errors, visible=show_errors),
             name="V",
             mode="markers",
             marker_symbol="circle-open",
@@ -158,8 +194,8 @@ def plot_volume(
     )
     figure.add_trace(
         go.Scatter(
-            x=x,
-            y=gradient * x + intercept,
+            x=xs,
+            y=ys,
             name="V<sub>lin</sub>",
             mode="lines",
             line=dict(color="Black"),
