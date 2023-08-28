@@ -4,15 +4,15 @@ site_description: Documentation for PASCal
 theme:
   name: material
   font:
+    text: 'Karla'
     features:
       - content.code.copy
+
   palette:
     scheme: default
     primary: brown
     accent: red
 
-  font:
-    text: Source Sans Pro
   favicon: ./src/PASCal/static/PASCal_icon.png
   language: en
   logo: ./src/PASCal/static/PASCal_icon.png
@@ -76,6 +76,9 @@ plugins:
               - "!__json_encoder__$"
               - "!__all__$"
               - "!__config__$"
+              - "!__eq__$"
+              - "!__repr__$"
+              - "!__init__$"
   - awesome-pages
   - autorefs
 

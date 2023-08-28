@@ -2,4 +2,4 @@ nav:
     - index.md
     - "License": LICENSE.md
     - CONTRIBUTING.md
-    - api_reference.md
+    - "API Reference": api_reference
