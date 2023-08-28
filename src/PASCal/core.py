@@ -1,12 +1,12 @@
 """This module defines the core functionality of PASCal: the fit function and the results container."""
 
 import plotly.graph_objs
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Union, List, Tuple, Any, Optional, Dict
 from PASCal.options import Options, PASCalDataType
 from PASCal.plotting import plot_indicatrix, plot_strain, plot_volume
 from PASCal.utils import Strain, Pressure, Volume, Charge, Temperature
-from PASCal.constants import K_to_MK, GPa_to_TPa
+from PASCal.constants import K_to_MK, GPa_to_TPa, PERCENT
 from PASCal.fitting import (
     fit_linear_wls,
     fit_chebyshev,
@@ -80,6 +80,9 @@ class PASCalResults:
     warning: List[str]
     """Any warnings generated during the fit."""
 
+    named_coefficients: Optional[Dict[str, Any]] = field(default=None)
+    """Any additional named coefficients to render in the table."""
+
     def plot_strain(
         self, return_json: bool = False, show_errors: bool = False
     ) -> Union[str, plotly.graph_objs.Figure]:
@@ -116,6 +119,36 @@ class PASCalResults:
             self.options.data_type,
             return_json=return_json,
         )
+
+    def _set_named_coeffs(self):
+        """Compute a series of named coefficients for displaying in the app."""
+        self.named_coefficients = {}
+        if self.options.data_type == PASCalDataType.TEMPERATURE:
+            self.named_coefficients["CalAlphaErr"] = np.array(
+                [self.strain_fits["linear"][i].HC0_se[1] * K_to_MK for i in range(3)]
+            )
+            self.named_coefficients["VolLin"] = np.array(
+                self.volume_fits["linear"].params[1] * self.x
+                + self.volume_fits["linear"].params[0],
+            )
+
+            self.named_coefficients["VolCoef"] = (
+                self.volume_fits["linear"].params[1] / self.cell_volumes[0] * K_to_MK
+            )
+
+            self.named_coefficients["VolCoefErr"] = (
+                self.volume_fits["linear"].HC0_se[1] / self.cell_volumes[0] * K_to_MK
+            )
+            self.named_coefficients["XCal"] = np.array(
+                [
+                    PERCENT
+                    * (
+                        self.strain_fits["linear"][i].params[1] * self.x
+                        + self.strain_fits["linear"][i].params[0]
+                    )
+                    for i in range(3)
+                ]
+            )
 
 
 def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults:
@@ -232,7 +265,7 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
     )
     indicatrix = PASCal.utils.indicatrix(principal_components)
 
-    return PASCalResults(
+    results = PASCalResults(
         options=options,
         x=x,
         x_errors=x_errors,
@@ -255,3 +288,5 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
         if options.data_type == PASCalDataType.PRESSURE
         else None,
     )
+    results._set_named_coeffs()
+    return results
