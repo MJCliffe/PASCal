@@ -71,10 +71,20 @@ def output():
 
     fit_results = fit(x, x_errors, unit_cells, options)
 
-    return _render_page(fit_results)
+    return _render_results(fit_results)
 
 
-def _render_page(results: PASCalResults):
+def _render_results(results: PASCalResults) -> str:
+    """Take the results of a PASCal fit and render them as HTML.
+
+    Parameters:
+        results: The results of a PASCal fit.
+
+    Returns:
+        The rendered HTML to serve.
+
+    """
+
     if results.options.data_type == PASCalDataType.TEMPERATURE:
         return render_template(
             "temperature.html",
@@ -85,89 +95,72 @@ def _render_page(results: PASCalResults):
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
             Axes=["X1", "X2", "X3", "V"],
             PrinComp=np.round(results.principal_components, 4),
-            CalAlphaErr=PASCal._legacy.Round(
-                np.array(
-                    [
-                        results.strain_fits["linear"][i].HC0_se[1] * K_to_MK
-                        for i in range(3)
-                    ]
-                ),
-                4,
-            ),
             MedianPrinAxCryst=PASCal._legacy.Round(
                 results.median_principal_axis_crys, 4
             ),
+            Vol=PASCal.utils.round_array(results.cell_volumes, 4),
             PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
             TPx=results.x,
             DiagStrain=np.round(results.diagonal_strain * PERCENT, 4),
-            XCal=PASCal._legacy.Round(results.x, 4),
-            Vol=PASCal._legacy.Round(results.cell_volumes, 4),
-            VolLin=PASCal._legacy.Round(
-                results.volume_fits["linear"].params[1] * results.x
-                + results.volume_fits["linear"].params[0],
-                4,
-            ),
-            VolCoef=PASCal._legacy.Round(
-                results.volume_fits["linear"].params[1]
-                / results.cell_volumes[0]
-                * K_to_MK,
-                4,
-            ),
-            VolCoefErr=PASCal._legacy.Round(
-                results.volume_fits["linear"].HC0_se[1]
-                / results.cell_volumes[0]
-                * K_to_MK,
-                4,
-            ),
             TPxError=results.x_errors,
             Latt=results.unit_cells,
+            **{
+                k: PASCal.utils.round_array(results.named_coefficients[k], 4)
+                for k in results.named_coefficients
+            },
         )
 
-    # if options.data_type == PASCalDataType.PRESSURE:
-    #     return render_template(
-    #         "pressure.html",
-    #         config=plotly_config,
-    #         warning=warning,
-    #         PlotStrainJSON=StrainJSON,
-    #         PlotDerivJSON=DerivJSON,
-    #         PlotVolumeJSON=VolumeJSON,
-    #         PlotIndicJSON=IndicatrixJSON,
-    #         KEmpHeadings=KEmpHeadings,
-    #         CalEpsilon0=PASCal._legacy.Round(CalEpsilon0, 4),
-    #         CalLambda=PASCal._legacy.Round(CalLambda, 4),
-    #         CalPc=PASCal._legacy.Round(CalPc, 4),
-    #         CalNu=PASCal._legacy.Round(CalNu, 4),
-    #         StrainHeadings=StrainHeadings,
-    #         InputHeadings=InputHeadings,
-    #         data=raw_data,
-    #         Axes=Axes,
-    #         PrinComp=PASCal._legacy.Round(PrinComp, 4),
-    #         KErr=PASCal._legacy.Round(KErr, 4),
-    #         u=median_x,
-    #         MedianPrinAxCryst=PASCal._legacy.Round(median_principal_axis_crys, 4),
-    #         PrinAxCryst=PASCal._legacy.Round(principal_axis_crys, 4),
-    #         BMCoeffHeadings=BMCoeffHeadings,
-    # BMOrder=BMOrder,
-    # B0=PASCal._legacy.Round(B0, 4),
-    # SigB0=PASCal._legacy.Round(SigB0, 4),
-    # V0=PASCal._legacy.Round(V0, 4),
-    # SigV0=PASCal._legacy.Round(SigV0, 4),
-    # BPrime=PASCal._legacy.Round(BPrime, 4),
-    # SigBPrime=SigBPrime,
-    # PcCoef=PASCal._legacy.Round(PcCoef, 4),
-    # KHeadings=KHeadings,
-    # K=PASCal._legacy.Round(K, 4),
-    # TPx=x,
-    # DiagStrain=PASCal._legacy.Round(diagonal_strain * PERCENT, 4),
-    # XCal=PASCal._legacy.Round(XCal, 4),
-    # VolPressHeadings=VolPressHeadings,
-    # Vol=PASCal._legacy.Round(cell_volumes, 4),
-    # VolCoef=PASCal._legacy.Round(VolCoef, 4),
-    # VolCoefErr=PASCal._legacy.Round(VolCoefErr, 4),
-    # CalPress=PASCal._legacy.Round(CalPress, 4),
-    # UsePc=str(options.use_pc),
-    # TPxError=x_errors,
-    # Latt=unit_cells,
+    if results.options.data_type == PASCalDataType.PRESSURE:
+        pass
+        # return render_template(
+        #     "pressure.html",
+        #     config=json.dumps(PLOTLY_CONFIG),
+        #     warning=results.warning,
+        #     PlotStrainJSON=results.plot_strain(return_json=True),
+        #     PlotVolumeJSON=results.plot_volume(return_json=True),
+        #     PlotIndicJSON=results.plot_indicatrix(return_json=True),
+        #     PlotDerivJSON=DerivJSON,
+        #     CalEpsilon0=PASCal._legacy.Round(CalEpsilon0, 4),
+        #     CalLambda=PASCal._legacy.Round(CalLambda, 4),
+        #     CalPc=PASCal._legacy.Round(CalPc, 4),
+        #     CalNu=PASCal._legacy.Round(CalNu, 4),
+        #     Axes=["X1", "X2", "X3", "V"],
+        #     PrinComp=np.round(results.principal_components, 4),
+        #     MedianPrinAxCryst=PASCal._legacy.Round(
+        #         results.median_principal_axis_crys, 4
+        #     ),
+        #     PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
+        #     BMOrder=["2nd", "3rd"] + ["3rd with Pc"] if results.options.use_pc else [],
+        #     B0=PASCal._legacy.Round(B0, 4),
+        #     SigB0=PASCal._legacy.Round(SigB0, 4),
+        #     V0=PASCal._legacy.Round(V0, 4),
+        #     SigV0=PASCal._legacy.Round(SigV0, 4),
+        #     BPrime=PASCal._legacy.Round(BPrime, 4),
+        #     SigBPrime=SigBPrime,
+        #     PcCoef=PASCal._legacy.Round(PcCoef, 4),
+        #     CalPress=PASCal._legacy.Round(CalPress, 4),
+
+        #     K=PASCal._legacy.Round(results.compressibility, 4),
+        #     KErr=PASCal._legacy.Round(results.compressibility_errors, 4),
+        # TPx=results.x,
+        # DiagStrain=np.round(results.diagonal_strain * PERCENT, 4),
+        # XCal=PASCal._legacy.Round(results.x, 4),
+        # Vol=PASCal._legacy.Round(results.cell_volumes, 4),
+        # VolCoef=PASCal._legacy.Round(
+        #     results.volume_fits["linear"].params[1]
+        #     / results.cell_volumes[0]
+        #     * K_to_MK,
+        #     4,
+        # ),
+    #         VolCoefErr=PASCal._legacy.Round(
+    #             results.volume_fits["linear"].HC0_se[1]
+    #             / results.cell_volumes[0]
+    #             * K_to_MK,
+    #             4,
+    #         ),
+    #         UsePc=results.options.use_pc,
+    #         TPxError=results.x_errors,
+    #         Latt=results.unit_cells,
     # )
 
     # if options.data_type == PASCalDataType.ELECTROCHEMICAL:
