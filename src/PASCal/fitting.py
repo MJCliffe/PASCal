@@ -1,10 +1,6 @@
 from typing import List, Callable, Tuple, Union, Dict, Optional
 from functools import partial
 
-try:
-    from typing import TypeAlias  # type: ignore[attr-defined]
-except ImportError:
-    from typing_extensions import TypeAlias
 import numpy as np
 import statsmodels.api as sm
 
@@ -12,13 +8,7 @@ from scipy.optimize import curve_fit
 from PASCal.utils import (
     empirical_pressure_strain_relation,
 )
-
-
-Strain: TypeAlias = np.ndarray
-Pressure: TypeAlias = np.ndarray
-Volume: TypeAlias = np.ndarray
-Charge: TypeAlias = np.ndarray
-Temperature: TypeAlias = np.ndarray
+from PASCal.utils import Strain, Pressure, Volume, Charge, Temperature
 
 
 def fit_linear_wls(
@@ -165,8 +155,8 @@ def fit_birch_murnaghan_volume_pressure(
         birch_murnaghan_3rd_pc,
     )
 
-    popts: Dict[Callable, np.ndarray] = []
-    pcovs: Dict[Callable, np.ndarray] = []
+    popts: Dict[Callable, np.ndarray] = {}
+    pcovs: Dict[Callable, np.ndarray] = {}
 
     dp = pressure[-1] - pressure[0]
     dV = cell_volumes[-1] - cell_volumes[0]

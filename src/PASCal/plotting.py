@@ -196,7 +196,15 @@ def plot_volume(
 
 
 def plot_indicatrix(
-    norm_crax, maxIn, R, X, Y, Z, data_type: Union[PASCalDataType, str]
+    norm_crax,
+    maxIn,
+    R,
+    X,
+    Y,
+    Z,
+    data_type: Union[PASCalDataType, str],
+    return_json: bool = False,
+    plot_size: int = 800,
 ):
     if not isinstance(data_type, PASCalDataType):
         data_type = PASCalDataType[data_type.upper()]
@@ -270,10 +278,10 @@ def plot_indicatrix(
         "showbackground": False,
         "range": [-maxIn * axis_scale, maxIn * axis_scale],
     }
-    figure.upidate_layout(  # title='Indicatrix Plot',
+    figure.update_layout(  # title='Indicatrix Plot',
         autosize=False,
-        width=800,
-        height=800,
+        width=plot_size,
+        height=plot_size,
         scene_aspectmode="cube",
         scene=dict(
             xaxis=axis_defaults,
@@ -293,4 +301,6 @@ def plot_indicatrix(
         ),
     )
 
-    return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+    if return_json:
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+    return figure
