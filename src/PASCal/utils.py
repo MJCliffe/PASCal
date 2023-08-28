@@ -80,7 +80,7 @@ def cell_vols(lattices: np.ndarray) -> np.ndarray:
     )
 
 
-def empirical_p(
+def empirical_pressure_strain_relation(
     p: np.ndarray, ε_0: np.ndarray, λ: float, p_c: float, nu: float
 ) -> np.ndarray:
     """Empirical strain fit for pressure-dependent input data, with free
@@ -104,7 +104,7 @@ def empirical_p(
     return ε_0 + (λ * ((p - p_c) ** nu))
 
 
-def compressibility(p: np.ndarray, λ: float, p_c: float, nu: float) -> np.ndarray:
+def get_compressibility(p: np.ndarray, λ: float, p_c: float, nu: float) -> np.ndarray:
     """Calculate the compressibility from the derivative
     $-\\left(\\frac{\\mathrm{d}ε}{\\mathrm{d}p}\\right)_T$
 
@@ -122,7 +122,7 @@ def compressibility(p: np.ndarray, λ: float, p_c: float, nu: float) -> np.ndarr
     return -λ * nu * ((p - p_c) ** (nu - 1))
 
 
-def compressibility_errors(
+def get_compressibility_errors(
     p_cov: np.ndarray, p: np.ndarray, λ: float, p_c: float, nu: float
 ) -> np.ndarray:
     """Calculate errors in compressibilities.
@@ -347,3 +347,26 @@ def match_axes(
         principal_axes[n, :, [0, 1, 2]] = principal_axes[n, :, axes_order]
 
     return principal_axes, diagonal_strain
+
+
+def rotate_to_principal_axes(orthonormed_cells, principal_axes, median_x):
+    principal_axis_crys = np.transpose(
+        np.matmul(orthonormed_cells, principal_axes[:, :, :]), axes=[0, 2, 1]
+    )  # Eigenvector projected on crystallographic axes, UVW
+    crys_prin_ax = np.linalg.inv(
+        principal_axis_crys
+    )  # Unit Cell in Principal axes coordinates, å
+    principal_axis_crys = (
+        principal_axis_crys.T / (np.sum(principal_axis_crys**2, axis=2) ** 0.5).T
+    ).T  # normalised to make UVW near 1
+
+    ### Ensures the largest component of each eigenvector is positive to make comparing easier
+    max_axis = np.argmax(
+        np.abs(principal_axis_crys), axis=2
+    )  # find the largest value of each eigenvector
+    I, J = np.indices(max_axis.shape)
+    mask = principal_axis_crys[I, J, max_axis] < 0
+    principal_axis_crys[mask, :] *= -1
+    # transpositions to take advantage of broadcasting, not maths
+    median_principal_axis_crys = principal_axis_crys[median_x]
+    return median_principal_axis_crys, principal_axis_crys, crys_prin_ax
