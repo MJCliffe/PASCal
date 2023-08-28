@@ -7,8 +7,9 @@ import plotly.subplots
 import numpy as np
 
 from PASCal.options import PASCalDataType
-from PASCal.constants import PERCENT
+from PASCal.constants import PERCENT, GPa_to_TPa, mAhg_to_kAhg
 from PASCal.utils import (
+    get_compressibility,
     Pressure,
     Temperature,
     Charge,
@@ -20,12 +21,6 @@ PLOT_WIDTH: int = 500
 PLOT_HEIGHT: int = 500
 PLOT_MARGINS: Dict[str, float] = dict(t=50, b=50, r=50, l=50)
 PLOT_PALETTE: List[str] = ["Red", "Green", "Blue"]
-PLOT_STRAIN_LABEL: List[str] = ["ε<sub>1</sub>", "ε<sub>2</sub>", "ε<sub>3</sub>"]
-PLOT_STRAIN_FIT_LABEL: List[str] = [
-    "ε<sub>1,calc</sub>",
-    "ε<sub>2,calc</sub>",
-    "ε<sub>3,calc</sub>",
-]
 PLOT_INDICATRIX_LABELS: Dict[PASCalDataType, str] = {
     PASCalDataType.TEMPERATURE: "Expansivity (MK<sup>-1</sup>)",
     PASCalDataType.PRESSURE: "K (TPa<sup>-1</sup>)",
@@ -100,7 +95,7 @@ def plot_strain(
                 x=x,
                 y=diagonal_strain[:, i] * PERCENT,
                 error_x=dict(type="data", array=x_errors, visible=show_errors),
-                name=PLOT_STRAIN_LABEL[i],
+                name=f"ε<sub>{i}</sub>",
                 mode="markers",
                 marker_symbol="circle-open",
                 marker=dict(color=PLOT_PALETTE[i]),
@@ -111,7 +106,7 @@ def plot_strain(
             go.Scatter(
                 x=xs,
                 y=ys[i] * PERCENT,
-                name=PLOT_STRAIN_FIT_LABEL[i],
+                name=f"ε<sub>{i},calc</sub>",
                 mode="lines",
                 line=dict(color=PLOT_PALETTE[i]),
             )
@@ -239,6 +234,293 @@ def plot_volume(
         showline=True,
         linecolor="black",
     )
+    figure.update_layout(
+        autosize=False,
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        margin=PLOT_MARGINS,
+        showlegend=True,
+        hovermode="x unified",
+        plot_bgcolor="white",
+    )
+
+    if return_json:
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+    return figure
+
+
+def plot_compressibility(
+    x: Pressure,
+    compressibility: np.ndarray,
+    compressibility_errors: np.ndarray,
+    fit_results: Dict[str, Any],
+    data_type: Union[PASCalDataType, str],
+    return_json: bool = False,
+):
+    """Plot each component of the compressibility alongside
+    the fitted values.
+
+    Parameters:
+        x: Array containing the control variable.
+        compressibility: Array of compressibility values.
+        compressibility_errors: Array of compressibility errors.
+        fit_results: A set of `curve_fit` results for the compressibility fits in
+            each direction, with key `empirical`.
+        return_json: Whether or not to return the JSON dump of the figure.
+
+    Returns:
+        JSON dump of the plotly figure if return_json, else return the plotly figure.
+
+    """
+    figure = go.Figure()
+
+    if not isinstance(data_type, PASCalDataType):
+        data_type = PASCalDataType[data_type.upper()]
+    if not data_type == PASCalDataType.PRESSURE:
+        raise RuntimeError("compressibility plot only possible for pressure data")
+
+    for i in range(3):
+        k_label = f"K<sub>{i}</sub>"
+        figure.add_trace(
+            go.Scatter(
+                name=k_label,
+                x=x,
+                y=compressibility[i],
+                mode="markers",
+                marker_symbol="circle-open",
+                marker=dict(color=PLOT_PALETTE[i]),
+            )
+        )
+
+        figure.add_trace(
+            go.Scatter(
+                x=np.concatenate([x, x[::-1]]),
+                y=np.concatenate(
+                    [
+                        compressibility[i] - compressibility_errors[i],
+                        (compressibility[i] - compressibility_errors[i])[::-1],
+                    ]
+                ),
+                fill="toself",
+                fillcolor=PLOT_PALETTE[i],
+                line=dict(color=PLOT_PALETTE[i]),
+                name=k_label,
+                hoverinfo="skip",
+                opacity=0.25,
+            )
+        )
+
+        xs = np.linspace(x[0], x[-1], num=200)
+
+        figure.add_trace(
+            go.Scatter(
+                x=xs,
+                y=get_compressibility(
+                    xs,
+                    fit_results["empirical"][i][0][1],
+                    fit_results["empirical"][i][0][2],
+                    fit_results["empirical"][i][0][3],
+                )
+                * GPa_to_TPa,
+                mode="lines",
+                name=k_label,
+                line=dict(color=PLOT_PALETTE[i]),
+            )
+        )
+
+        figure.update_xaxes(
+            title_text="Pressure (GPa)",
+            mirror="ticks",
+            ticks="inside",
+            showline=True,
+            linecolor="black",
+        )
+        figure.update_yaxes(
+            title_text="Compressibility (TPa <sup>–1</sup>)",
+            mirror="ticks",
+            ticks="inside",
+            showline=True,
+            linecolor="black",
+        )
+        figure.add_hline(y=0)  # the horizontal line along the x axis
+
+        figure.update_layout(
+            autosize=False,
+            width=PLOT_WIDTH,
+            height=PLOT_HEIGHT,
+            margin=PLOT_MARGINS,
+            showlegend=True,
+            hovermode="x unified",
+            plot_bgcolor="white",
+        )
+
+        if return_json:
+            return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+        return figure
+
+
+def plot_charge_derivative(
+    x: Charge,
+    strain: np.ndarray,
+    fit_results: Dict[str, Any],
+    data_type: Union[PASCalDataType, str],
+    return_json: bool = False,
+):
+    """Plot each component of the charge derivative alongside
+    the fitted values.
+
+    Parameters:
+        x: Array containing the control variable.
+        strain: Array of strain values.
+        fit_results: A set of `chebfit` results for the charge in
+            each direction, with key `chebyshev`.
+        return_json: Whether or not to return the JSON dump of the figure.
+
+    Returns:
+        JSON dump of the plotly figure if return_json, else return the plotly figure.
+
+    """
+    figure = go.Figure()
+
+    if not isinstance(data_type, PASCalDataType):
+        data_type = PASCalDataType[data_type.upper()]
+    if not data_type == PASCalDataType.ELECTROCHEMICAL:
+        raise RuntimeError(
+            "charge derivative plot only possible for electrochemical data"
+        )
+
+    figure = go.Figure()
+
+    cheby_deriv = [
+        np.polynomial.chebyshev.chebder(
+            fit_results["chebyshev"][0][i], m=1, scl=1, axis=0
+        )
+        for i in range(3)
+    ]
+    derivative = [
+        mAhg_to_kAhg * np.polynomial.chebyshev.chebval(x, cheby_deriv[i])
+        for i in range(3)
+    ]
+
+    xs = np.linspace(x[0], x[-1], num=300)
+
+    for i in range(3):
+        qp_label = f"q'<sub>{i}</sub>"
+
+        figure.add_trace(
+            go.Scatter(
+                x=x,
+                y=derivative[i],
+                name=qp_label,
+                mode="markers",
+                marker_symbol="circle-open",
+                marker=dict(color=PLOT_PALETTE[i]),
+            )
+        )
+
+        figure.add_trace(
+            go.Scatter(
+                x=xs,
+                y=np.polynomial.chebyshev.chebval(xs, cheby_deriv[i]) * mAhg_to_kAhg,
+                mode="lines",
+                name=qp_label,
+                line=dict(color=PLOT_PALETTE[i]),
+            )
+        )
+
+    figure.add_hline(y=0)
+    figure.update_xaxes(
+        title_text="Cumulative capacity (mAhg<sup>-1</sup>)",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+    figure.update_yaxes(
+        title_text="Charge-derivative of the electrochemical strain' (1/[kAhg<sup>-1</sup>])",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+
+    figure.update_layout(
+        autosize=False,
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        margin=PLOT_MARGINS,
+        showlegend=True,
+        hovermode="x unified",
+        plot_bgcolor="white",
+    )
+
+    if return_json:
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+    return figure
+
+
+def plot_residual(
+    strain_fit_results: Dict[str, Any],
+    volume_fit_results: Dict[str, Any],
+    data_type: Union[PASCalDataType, str],
+    return_json: bool = False,
+):
+    """Plot the residual values of the Chebyshev fits for electrochemical data.
+
+    Parameters:
+        strain_fit_results: A set of `chebfit` results for the strain vs charge.
+        volume_fit_results: A set of `chebfit` results for the volume vs charge.
+        data_type: The type of data being plotted.
+        return_json: Whether or not to return the JSON dump of the figure.
+
+    Returns:
+        JSON dump of the plotly figure if return_json, else return the plotly figure.
+
+    """
+    figure = go.Figure()
+
+    if not isinstance(data_type, PASCalDataType):
+        data_type = PASCalDataType[data_type.upper()]
+    if not data_type == PASCalDataType.ELECTROCHEMICAL:
+        raise RuntimeError("residual plot only possible for electrochemical data")
+    for i in range(3):
+        figure.add_trace(
+            go.Scatter(
+                x=[len(strain_fit_results["chebyshev"][0][i])],
+                y=[strain_fit_results["chebyshev"][1][i]],
+                name=f"ε'<sub>{i}</sub>",
+                mode="lines+markers",
+                line=dict(color=PLOT_PALETTE[i]),
+                marker=dict(color=PLOT_PALETTE[i]),
+            )
+        )
+
+    figure.add_trace(
+        go.Scatter(
+            x=[len(volume_fit_results["chebyshev"][0])],
+            y=[volume_fit_results["chebyshev"][1]],
+            name="V",
+            mode="lines+markers",
+            line=dict(color="Black"),
+            marker=dict(color="Black"),
+        )
+    )
+
+    figure.update_xaxes(
+        title_text="Degree of Chebyshev polynomial",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+    figure.update_yaxes(
+        title_text="Sum of squared residual",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+
     figure.update_layout(
         autosize=False,
         width=PLOT_WIDTH,
