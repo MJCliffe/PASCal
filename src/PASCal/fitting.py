@@ -69,7 +69,7 @@ def fit_chebyshev(
     coeffs, (residuals, _, _, _) = np.polynomial.chebyshev.chebfit(
         x, y, max_degree, full=True
     )
-    return coeffs, residuals
+    return coeffs.T, residuals
 
 
 def fit_empirical_strain_pressure(

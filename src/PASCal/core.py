@@ -4,9 +4,23 @@ import plotly.graph_objs
 from dataclasses import dataclass, field
 from typing import Union, List, Tuple, Any, Optional, Dict
 from PASCal.options import Options, PASCalDataType
-from PASCal.plotting import plot_indicatrix, plot_strain, plot_volume
-from PASCal.utils import Strain, Pressure, Volume, Charge, Temperature
-from PASCal.constants import K_to_MK, GPa_to_TPa, PERCENT
+from PASCal.plotting import (
+    plot_charge_derivative,
+    plot_indicatrix,
+    plot_residual,
+    plot_strain,
+    plot_volume,
+    plot_compressibility,
+)
+from PASCal.utils import (
+    Strain,
+    Pressure,
+    Volume,
+    Charge,
+    Temperature,
+    empirical_pressure_strain_relation,
+)
+from PASCal.constants import K_to_MK, GPa_to_TPa, PERCENT, mAhg_to_kAhg
 from PASCal.fitting import (
     fit_linear_wls,
     fit_chebyshev,
@@ -30,6 +44,7 @@ class PASCalResults:
 
     x: Union[Pressure, Temperature, Charge]
     """The input control variable $X$, either pressure, temperature or charge."""
+
     x_errors: Union[Pressure, Temperature, Charge]
     """The input errors on the control variable $X$, either pressure, temperature or charge."""
 
@@ -120,6 +135,39 @@ class PASCalResults:
             return_json=return_json,
         )
 
+    def plot_compressibility(
+        self, return_json: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
+        return plot_compressibility(
+            self.x,
+            self.compressibility,
+            self.compressibility_errors,
+            self.strain_fits,
+            self.options.data_type,
+            return_json=return_json,
+        )
+
+    def plot_charge_derivative(
+        self, return_json: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
+        return plot_charge_derivative(
+            self.x,
+            self.diagonal_strain,
+            self.strain_fits,
+            self.options.data_type,
+            return_json=return_json,
+        )
+
+    def plot_residual(
+        self, return_json: bool = False
+    ) -> Union[str, plotly.graph_objs.Figure]:
+        return plot_residual(
+            self.strain_fits,
+            self.volume_fits,
+            self.options.data_type,
+            return_json=return_json,
+        )
+
     def _set_named_coeffs(self):
         """Compute a series of named coefficients for displaying in the app."""
         self.named_coefficients = {}
@@ -133,7 +181,7 @@ class PASCalResults:
             )
 
             self.named_coefficients["VolCoef"] = (
-                self.volume_fits["linear"].params[1] / self.cell_volumes[0] * K_to_MK
+                -self.volume_fits["linear"].params[1] / self.cell_volumes[0] * K_to_MK
             )
 
             self.named_coefficients["VolCoefErr"] = (
@@ -148,6 +196,96 @@ class PASCalResults:
                     )
                     for i in range(3)
                 ]
+            )
+        if self.options.data_type == PASCalDataType.PRESSURE:
+            self.named_coefficients["VolCoef"] = (
+                self.volume_fits["linear"].params[1] / self.cell_volumes[0] * GPa_to_TPa
+            )
+
+            self.named_coefficients["VolCoefErr"] = (
+                self.volume_fits["linear"].HC0_se[1] / self.cell_volumes[0] * GPa_to_TPa
+            )
+            self.named_coefficients["CalEpsilon0"] = np.array(
+                [self.strain_fits["empirical"][0][i][0] for i in range(3)]
+            )
+            self.named_coefficients["CalLambda"] = np.array(
+                [self.strain_fits["empirical"][0][i][1] for i in range(3)]
+            )
+            self.named_coefficients["CalPc"] = np.array(
+                [self.strain_fits["empirical"][0][i][2] for i in range(3)]
+            )
+            self.named_coefficients["CalNu"] = np.array(
+                [self.strain_fits["empirical"][0][i][3] for i in range(3)]
+            )
+            self.named_coefficients["XCal"] = np.array(
+                [
+                    PERCENT
+                    * (
+                        empirical_pressure_strain_relation(
+                            self.x, *self.strain_fits["empirical"][0][i]
+                        )
+                    )
+                    for i in range(3)
+                ]
+            )
+            self.named_coefficients["B0"] = np.array(
+                [self.volume_fits[k][0][1] for k in self.volume_fits if k != "linear"]
+            )
+
+            # TODO
+            self.named_coefficients["SigB0"] = np.array([0.0, 0.0, 0.0])
+            self.named_coefficients["V0"] = np.array(
+                [self.volume_fits[k][0][0] for k in self.volume_fits if k != "linear"]
+            )
+            self.named_coefficients["SigV0"] = np.array([0.0, 0.0, 0.0])
+            self.named_coefficients["BPrime"] = np.array(
+                [
+                    self.volume_fits[k][0][2]
+                    if k != "linear" and len(self.volume_fits[k][0]) > 2
+                    else 4
+                    for k in self.volume_fits
+                ]
+            )
+            self.named_coefficients["SigBPrime"] = np.array([0.0, 0.0, 0.0])
+            self.named_coefficients["PcCoef"] = np.array(
+                [0.0, 0.0, self.options.pc_val]
+            )
+            self.named_coefficients["CalPress"] = np.zeros((3, len(self.cell_volumes)))
+            self.named_coefficients["CalPress"][0][:] = (
+                self.cell_volumes - self.volume_fits["linear"].params[0]
+            ) / self.volume_fits["linear"].params[1]
+            axis = 1
+            for fn in self.volume_fits:
+                if fn != "linear":
+                    self.named_coefficients["CalPress"][axis][:] = fn(
+                        self.cell_volumes, *self.volume_fits[fn][0]
+                    )
+                    axis += 1
+
+        if self.options.data_type == PASCalDataType.ELECTROCHEMICAL:
+            self.named_coefficients["XCal"] = np.array(
+                [
+                    np.polynomial.chebyshev.chebval(
+                        self.x, self.strain_fits["chebyshev"][0][i]
+                    )
+                    for i in range(3)
+                ]
+            )
+            cheby_deriv = [
+                np.polynomial.chebyshev.chebder(
+                    self.strain_fits["chebyshev"][0][i], m=1, scl=1, axis=0
+                )
+                for i in range(3)
+            ]
+            self.named_coefficients["Deriv"] = np.array(
+                [
+                    mAhg_to_kAhg
+                    * np.polynomial.chebyshev.chebval(self.x, cheby_deriv[i])
+                    for i in range(3)
+                ]
+            )
+            self.named_coefficients["VolCheb"] = np.polynomial.chebyshev.chebval(
+                self.x, self.volume_fits["chebyshev"][0]
             )
 
 
@@ -226,12 +364,21 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
         )
 
         compressibility = np.zeros((3, len(x)))
+        compressibility_errors = np.zeros((3, len(x)))
+        popt, pcov, _ = strain_fits["empirical"]
         for i in range(3):
-            empirical_popts = strain_fits["empirical"][0][i][1:]
+            empirical_popts = popt[i][1:]
             compressibility[i][:] = (
                 PASCal.utils.get_compressibility(x, *empirical_popts) * GPa_to_TPa
             )
-        compressibility_errors = []
+            # TODO
+            # empirical_pcovs = pcov[i]
+            # compressibility_errors[i][:] = (
+            #     PASCal.utils.get_compressibility_errors(
+            #         empirical_pcovs, x, *empirical_popts
+            #     )
+            # * GPa_to_TPa
+            # )
         principal_components = [compressibility[i][median_x] for i in range(3)]
 
         bm_popts, bm_pcovs = fit_birch_murnaghan_volume_pressure(
@@ -253,11 +400,6 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
         volume_fits["chebyshev"] = fit_chebyshev(cell_volumes, x, options.deg_poly_vol)
 
         cheb_derivative = np.zeros((3, len(x)))
-        # for i in range(3):
-        # cheb_derivative[i] = np.polynomial.chebyshev.chebder(
-        #     strain_fits["chebyshev"][i][0], m=1, scl=1, axis=0
-        # )
-
         principal_components = [cheb_derivative[i][median_x] for i in range(3)]
 
     norm_crax = PASCal.utils.normalise_crys_axes(
