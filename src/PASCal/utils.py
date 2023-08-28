@@ -4,6 +4,17 @@ import itertools
 import statsmodels.api as sm
 from PASCal.constants import PERCENT
 
+try:
+    from typing import TypeAlias  # type: ignore[attr-defined]
+except ImportError:
+    from typing_extensions import TypeAlias
+
+Strain: TypeAlias = np.ndarray
+Pressure: TypeAlias = np.ndarray
+Volume: TypeAlias = np.ndarray
+Charge: TypeAlias = np.ndarray
+Temperature: TypeAlias = np.ndarray
+
 
 def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
     """Rounding the number to desired decimal places

@@ -39,15 +39,15 @@ class Options:
             "description": "Critical pressure value to use in GPa",
         },
     )
-    deg_poly_strain: Optional[int] = field(
-        default=None,
+    deg_poly_strain: int = field(
+        default=5,
         metadata={
             "form": "DegPolyCap",
             "description": "The degree of polynomial to use for fitting the strain vs charge/capacity.",
         },
     )
-    deg_poly_vol: Optional[int] = field(
-        default=None,
+    deg_poly_vol: int = field(
+        default=5,
         metadata={
             "form": "DegPolyVol",
             "description": "The degree of polynomial to use for fitting the volume vs charge/capacity",
@@ -60,11 +60,11 @@ class Options:
 
         if options.get("data_type"):
             options["data_type"] = PASCalDataType[options["data_type"].upper()]
-        if options.get("pc_val"):
+        if options.get("pc_val") is not None:
             options["pc_val"] = float(options["pc_val"])
-        if options.get("deg_poly_strain"):
+        if options.get("deg_poly_strain") is not None:
             options["deg_poly_strain"] = int(options["deg_poly_strain"])
-        if options.get("deg_poly_vol"):
+        if options.get("deg_poly_vol") is not None:
             options["deg_poly_vol"] = int(options["deg_poly_vol"])
 
         return Options(**options)
