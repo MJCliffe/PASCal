@@ -9,6 +9,9 @@ import numpy as np
 from PASCal.options import PASCalDataType
 from PASCal.constants import PERCENT, GPa_to_TPa, mAhg_to_kAhg
 from PASCal.utils import (
+    birch_murnaghan_2nd,
+    birch_murnaghan_3rd,
+    birch_murnaghan_3rd_pc,
     get_compressibility,
     Pressure,
     Temperature,
@@ -30,6 +33,12 @@ PLOT_X_LABELS = {
     PASCalDataType.TEMPERATURE: "Temperature (K)",
     PASCalDataType.PRESSURE: "Pressure (GPa)",
     PASCalDataType.ELECTROCHEMICAL: "Charge (mAhg<sup>-1</sup>)",
+}
+
+PLOT_BM_LABELS = {
+    birch_murnaghan_2nd: "V<sub>2nd BM</sub>",
+    birch_murnaghan_3rd: "V<sub>3rd BM</sub>",
+    birch_murnaghan_3rd_pc: "V<sub>3rd BM with P<sub>C</sub></sub>",
 }
 
 PLOTLY_CONFIG = {
@@ -176,25 +185,26 @@ def plot_volume(
         intercept = fit_result["linear"].params[0]
         gradient = fit_result["linear"].params[1]
         ys = [gradient * x + intercept]
-        xs = x
+        xs = [x]
         labels = ["V<sub>lin</sub>"]
     elif data_type == PASCalDataType.PRESSURE:
         # use BM fit results
-        xs = np.linspace(x[0], x[-1], num=1000)
+        xs = []
         ys = []
         labels = []
         for fn in fit_result:
             if fn == "linear":
                 continue
             popts, _ = fit_result[fn]
-            ys.append(fn(xs, *popts))
-            labels.append(f"V<sub>{fn}</sub>")
+            ys.append(np.linspace(cell_volumes[0], cell_volumes[-1], num=100))
+            xs.append(fn(ys, *popts).reshape(-1))  # type: ignore
+            labels.append(PLOT_BM_LABELS[fn])
     elif data_type == PASCalDataType.ELECTROCHEMICAL:
         # use chebyshev fits
         coeffs, _ = fit_result["chebyshev"]
         fns = np.polynomial.chebyshev.Chebyshev(coeffs)
-        xs = x
-        ys = [fns(xs)]
+        xs = [x]
+        ys = [fns(x)]
         labels = ["V<sub>cheb</sub>"]
 
     figure = go.Figure()
@@ -212,7 +222,7 @@ def plot_volume(
     for ind, label in enumerate(labels):
         figure.add_trace(
             go.Scatter(
-                x=xs,
+                x=xs[ind],
                 y=ys[ind],
                 name=label,
                 mode="lines",
@@ -292,71 +302,72 @@ def plot_compressibility(
             )
         )
 
-        figure.add_trace(
-            go.Scatter(
-                x=np.concatenate([x, x[::-1]]),
-                y=np.concatenate(
-                    [
-                        compressibility[i] - compressibility_errors[i],
-                        (compressibility[i] - compressibility_errors[i])[::-1],
-                    ]
-                ),
-                fill="toself",
-                fillcolor=PLOT_PALETTE[i],
-                line=dict(color=PLOT_PALETTE[i]),
-                name=k_label,
-                hoverinfo="skip",
-                opacity=0.25,
-            )
-        )
+        # TODO: fix
+        # figure.add_trace(
+        #     go.Scatter(
+        #         x=np.concatenate([x, x[::-1]]),
+        #         y=np.concatenate(
+        #             [
+        #                 compressibility[i] - compressibility_errors[i],
+        #                 (compressibility[i] - compressibility_errors[i])[::-1],
+        #             ]
+        #         ),
+        #         fill="toself",
+        #         fillcolor=PLOT_PALETTE[i],
+        #         line=dict(color=PLOT_PALETTE[i]),
+        #         name=k_label,
+        #         hoverinfo="skip",
+        #         opacity=0.25,
+        #     )
+        # )
 
         xs = np.linspace(x[0], x[-1], num=200)
 
-        figure.add_trace(
-            go.Scatter(
-                x=xs,
-                y=get_compressibility(
-                    xs,
-                    fit_results["empirical"][i][0][1],
-                    fit_results["empirical"][i][0][2],
-                    fit_results["empirical"][i][0][3],
-                )
-                * GPa_to_TPa,
-                mode="lines",
-                name=k_label,
-                line=dict(color=PLOT_PALETTE[i]),
-            )
-        )
+        # figure.add_trace(
+        #     go.Scatter(
+        #         x=xs,
+        #         y=get_compressibility(
+        #             xs,
+        #             fit_results["empirical"][i][0][1],
+        #             fit_results["empirical"][i][0][2],
+        #             fit_results["empirical"][i][0][3],
+        #         )
+        #         * GPa_to_TPa,
+        #         mode="lines",
+        #         name=k_label,
+        #         line=dict(color=PLOT_PALETTE[i]),
+        #     )
+        # )
 
-        figure.update_xaxes(
-            title_text="Pressure (GPa)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        figure.update_yaxes(
-            title_text="Compressibility (TPa <sup>–1</sup>)",
-            mirror="ticks",
-            ticks="inside",
-            showline=True,
-            linecolor="black",
-        )
-        figure.add_hline(y=0)  # the horizontal line along the x axis
+    figure.update_xaxes(
+        title_text="Pressure (GPa)",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+    figure.update_yaxes(
+        title_text="Compressibility (TPa <sup>–1</sup>)",
+        mirror="ticks",
+        ticks="inside",
+        showline=True,
+        linecolor="black",
+    )
+    figure.add_hline(y=0)  # the horizontal line along the x axis
 
-        figure.update_layout(
-            autosize=False,
-            width=PLOT_WIDTH,
-            height=PLOT_HEIGHT,
-            margin=PLOT_MARGINS,
-            showlegend=True,
-            hovermode="x unified",
-            plot_bgcolor="white",
-        )
+    figure.update_layout(
+        autosize=False,
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        margin=PLOT_MARGINS,
+        showlegend=True,
+        hovermode="x unified",
+        plot_bgcolor="white",
+    )
 
-        if return_json:
-            return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
-        return figure
+    if return_json:
+        return json.dumps(figure, cls=plotly.utils.PlotlyJSONEncoder)
+    return figure
 
 
 def plot_charge_derivative(

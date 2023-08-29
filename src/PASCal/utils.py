@@ -342,7 +342,6 @@ def match_axes(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Matches the axes of the principal components to the first unit cell."""
 
-    # TODO: why 1-indexed?
     for n in range(2, len(unit_cells)):
         # an array matching the axes against each other
         match = np.dot(principal_axes[1, :].T, principal_axes[n, :])
