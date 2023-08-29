@@ -183,7 +183,7 @@ class PASCalResults:
             )
 
             self.named_coefficients["VolCoef"] = (
-                -self.volume_fits["linear"].params[1] / self.cell_volumes[0] * K_to_MK
+                self.volume_fits["linear"].params[1] / self.cell_volumes[0] * K_to_MK
             )
 
             self.named_coefficients["VolCoefErr"] = (
