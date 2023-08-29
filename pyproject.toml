@@ -35,8 +35,9 @@ mkdocs = { version = "*", optional = true }
 mkdocs-material = { version = "*", optional = true }
 mkdocstrings = { version = "*", optional = true, extras = ["python-legacy"] }
 mkdocs-awesome-pages-plugin = { version = "*", optional = true }
-
+mkdocs-jupyter = { version = "*", optional = true }
+notebook = { version = "*", optional = true }
 
 [tool.poetry.extras]
 test = ["pytest", "beautifulsoup4"]
-docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin"]
+docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
