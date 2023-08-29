@@ -19,6 +19,7 @@ Data should be input as plain text, with eight values per row, the control param
 Lines beginning with "#" are treated as comments and ignored: `# This line is metadata`.
 
 There are a number of other options:
+
 - Data type: whether the data vary with temperature, pressure or electrochemical state-of-charge.
 This does not alter how the principal strains are calculated, but rather the fits (and units) that are carried out.
 - For pressure data, whether this is a high pressure phase, and if so at what critical pressure it undergoes the transition.
