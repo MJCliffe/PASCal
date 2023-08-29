@@ -208,3 +208,56 @@ def fit_birch_murnaghan_volume_pressure(
         )
 
     return popts, pcovs
+
+
+def get_best_chebyshev_strain_fit(
+    strain_fits: Dict[int, Tuple[np.ndarray, np.ndarray]]
+) -> Tuple[List[int], List[np.ndarray]]:
+    """Loop through the Chebyshev strain fits and return the indices of those with
+    the lowest residuals for each strain direction.
+
+    Parameters:
+        strain_fits: The Chebyshev strain fits.
+
+    Returns:
+        A list of the best fit degrees for each strain direction, and
+        the corresponding coefficients.
+
+    """
+    best_degrees = []
+    best_coeffs = []
+    for i in range(3):
+        residuals = []
+        degrees = []
+        for deg in strain_fits:
+            degrees.append(deg)
+            residuals.append(strain_fits[deg][1][i])
+        best_degrees.append(degrees[np.argmin(residuals)])
+        best_coeffs.append(strain_fits[best_degrees[-1]][0][i])
+
+    return best_degrees, best_coeffs
+
+
+def get_best_chebyshev_volume_fit(
+    volume_fits: Dict[int, Tuple[np.ndarray, float]]
+) -> Tuple[int, np.ndarray]:
+    """Loop through the Chebyshev strain fits and return the indices of those with
+    the lowest residuals for each strain direction.
+
+    Parameters:
+        strain_fits: The Chebyshev strain fits.
+
+    Returns:
+        A list of the best fit degrees for each strain direction, and
+        the corresponding coefficients.
+
+    """
+    residuals = []
+    degrees = []
+    for deg in volume_fits:
+        degrees.append(deg)
+        residuals.append(volume_fits[deg][1])
+    best_degree = degrees[np.argmin(residuals)]
+    best_coeffs = volume_fits[best_degree][0]
+
+    return best_degree, best_coeffs

@@ -8,6 +8,7 @@ import numpy as np
 
 from PASCal.options import PASCalDataType
 from PASCal.constants import PERCENT, GPa_to_TPa, mAhg_to_kAhg
+from PASCal.fitting import get_best_chebyshev_strain_fit, get_best_chebyshev_volume_fit
 from PASCal.utils import (
     birch_murnaghan_2nd,
     birch_murnaghan_3rd,
@@ -92,8 +93,8 @@ def plot_strain(
         ys = np.array([fns(xs, *popts[i]) for i in range(3)])
     elif data_type == PASCalDataType.ELECTROCHEMICAL:
         # use chebyshev fits
-        coeffs, _ = fit_results["chebyshev"]
-        fns = [np.polynomial.chebyshev.Chebyshev(coeffs[i]) for i in range(3)]
+        _, best_coeffs = get_best_chebyshev_strain_fit(fit_results["chebyshev"])
+        fns = [np.polynomial.chebyshev.Chebyshev(best_coeffs[i]) for i in range(3)]
         xs = x
         ys = np.array([fns[i](xs) for i in range(3)])
 
@@ -201,7 +202,7 @@ def plot_volume(
             labels.append(PLOT_BM_LABELS[fn])
     elif data_type == PASCalDataType.ELECTROCHEMICAL:
         # use chebyshev fits
-        coeffs, _ = fit_result["chebyshev"]
+        _, coeffs = get_best_chebyshev_volume_fit(fit_result["chebyshev"])
         fns = np.polynomial.chebyshev.Chebyshev(coeffs)
         xs = [x]
         ys = [fns(x)]
@@ -402,10 +403,10 @@ def plot_charge_derivative(
 
     figure = go.Figure()
 
+    _, best_coeffs = get_best_chebyshev_strain_fit(fit_results["chebyshev"])
+
     cheby_deriv = [
-        np.polynomial.chebyshev.chebder(
-            fit_results["chebyshev"][0][i], m=1, scl=1, axis=0
-        )
+        np.polynomial.chebyshev.chebder(best_coeffs[i], m=1, scl=1, axis=0)
         for i in range(3)
     ]
     derivative = [
@@ -494,28 +495,35 @@ def plot_residual(
         data_type = PASCalDataType[data_type.upper()]
     if not data_type == PASCalDataType.ELECTROCHEMICAL:
         raise RuntimeError("residual plot only possible for electrochemical data")
+
+    vol_degrees = np.array(sorted(list(volume_fit_results["chebyshev"].keys())))
+    vol_residuals = np.array(
+        [volume_fit_results["chebyshev"][deg][1] for deg in vol_degrees]
+    ).reshape(-1)
+
+    figure.add_trace(
+        go.Scatter(
+            x=vol_degrees,
+            y=vol_residuals,
+            name="V",
+            mode="lines+markers",
+            line=dict(color="black"),
+            marker=dict(color="black"),
+        )
+    )
     for i in range(3):
+        degrees = sorted(list(strain_fit_results["chebyshev"].keys()))
+        residuals = [strain_fit_results["chebyshev"][deg][1][i] for deg in degrees]
         figure.add_trace(
             go.Scatter(
-                x=[len(strain_fit_results["chebyshev"][0][i])],
-                y=[strain_fit_results["chebyshev"][1][i]],
+                x=degrees,
+                y=residuals,
                 name=f"ε'<sub>{i}</sub>",
                 mode="lines+markers",
                 line=dict(color=PLOT_PALETTE[i]),
                 marker=dict(color=PLOT_PALETTE[i]),
             )
         )
-
-    figure.add_trace(
-        go.Scatter(
-            x=[len(volume_fit_results["chebyshev"][0])],
-            y=[volume_fit_results["chebyshev"][1]],
-            name="V",
-            mode="lines+markers",
-            line=dict(color="Black"),
-            marker=dict(color="Black"),
-        )
-    )
 
     figure.update_xaxes(
         title_text="Degree of Chebyshev polynomial",
