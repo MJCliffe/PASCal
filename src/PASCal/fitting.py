@@ -198,8 +198,9 @@ def fit_birch_murnaghan_volume_pressure(
     )
 
     if critical_pressure is not None:
-        popts[birch_murnaghan_3rd_pc], pcovs[birch_murnaghan_3rd_pc] = curve_fit(
-            partial(birch_murnaghan_3rd_pc, p_c=critical_pressure),
+        fn = partial(birch_murnaghan_3rd_pc, p_c=critical_pressure)
+        popts[fn], pcovs[fn] = curve_fit(
+            fn,
             cell_volumes,
             pressure,
             p0=popts[birch_murnaghan_3rd],

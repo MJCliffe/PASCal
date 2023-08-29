@@ -1,7 +1,7 @@
 """A series of utility functions used in the operation of PASCal."""
 
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 import itertools
 import statsmodels.api as sm
 from PASCal.constants import PERCENT
@@ -153,10 +153,17 @@ def get_compressibility_errors(
     """
 
     J = np.zeros((4, p.shape[0]))  # jacobian matrix
+    k_errors = np.zeros((p.shape[0]))
     J[1] = ((p - p_c) ** (nu - 1)) * nu
     J[2] = -1 * λ * nu * (nu - 1) * (p - p_c) ** (nu - 2)
     J[3] = (nu * np.log(p - p_c) + 1) * ((p - p_c) ** (nu - 1)) * λ
-    return np.sqrt(np.sum(np.dot(J, p_cov) * J, axis=0))
+    for j in range(4):
+        for i in range(4):
+            k_errors += J[j] * J[i] * p_cov[j][i]
+
+    k_errors = np.sqrt(k_errors)
+
+    return k_errors
 
 
 def eta(V: np.ndarray, V_0: float) -> np.ndarray:
@@ -221,7 +228,11 @@ def birch_murnaghan_3rd(
 
 
 def birch_murnaghan_3rd_pc(
-    V: np.ndarray, V_0: float, B_0: float, Bprime: float, p_c: float
+    V: np.ndarray,
+    V_0: float,
+    B_0: float,
+    Bprime: float,
+    p_c: Optional[float] = None,
 ) -> np.ndarray:
     """The third-order Birch-Murnaghan fit corresponding the equation of state
     with incorporation of non-zero critical pressure:
@@ -243,6 +254,9 @@ def birch_murnaghan_3rd_pc(
     Returns:
         The third-order p(V) fit at each measured pressure point.
     """
+    if p_c is None:
+        raise RuntimeError("Critical pressure must be specified")
+
     return (eta(V, V_0) ** 5) * (
         p_c
         - 1 / 2 * ((3 * B_0) - (5 * p_c)) * (1 - (eta(V, V_0) ** 2))

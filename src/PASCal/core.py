@@ -200,7 +200,7 @@ class PASCalResults:
                 ]
             )
         if self.options.data_type == PASCalDataType.PRESSURE:
-            self.named_coefficients["VolCoef"] = (
+            self.named_coefficients["VolCoef"] = -(
                 self.volume_fits["linear"].params[1] / self.cell_volumes[0] * GPa_to_TPa
             )
 
@@ -234,7 +234,6 @@ class PASCalResults:
                 [self.volume_fits[k][0][1] for k in self.volume_fits if k != "linear"]
             )
 
-            # TODO
             self.named_coefficients["SigB0"] = np.array([0.0, 0.0, 0.0])
             self.named_coefficients["V0"] = np.array(
                 [self.volume_fits[k][0][0] for k in self.volume_fits if k != "linear"]
@@ -252,7 +251,9 @@ class PASCalResults:
             self.named_coefficients["PcCoef"] = np.array(
                 [0.0, 0.0, self.options.pc_val]
             )
-            self.named_coefficients["CalPress"] = np.zeros((3, len(self.cell_volumes)))
+            self.named_coefficients["CalPress"] = np.zeros(
+                (len(self.volume_fits), len(self.cell_volumes))
+            )
             self.named_coefficients["CalPress"][0][:] = (
                 self.cell_volumes - self.volume_fits["linear"].params[0]
             ) / self.volume_fits["linear"].params[1]
@@ -388,14 +389,13 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
             compressibility[i][:] = (
                 PASCal.utils.get_compressibility(x, *empirical_popts) * GPa_to_TPa
             )
-            # TODO
-            # empirical_pcovs = pcov[i]
-            # compressibility_errors[i][:] = (
-            #     PASCal.utils.get_compressibility_errors(
-            #         empirical_pcovs, x, *empirical_popts
-            #     )
-            # * GPa_to_TPa
-            # )
+            empirical_pcovs = pcov[i]
+            compressibility_errors[i][:] = (
+                PASCal.utils.get_compressibility_errors(
+                    empirical_pcovs, x, *empirical_popts
+                )
+                * GPa_to_TPa
+            )
         principal_components = [compressibility[i][median_x] for i in range(3)]
 
         bm_popts, bm_pcovs = fit_birch_murnaghan_volume_pressure(

@@ -199,7 +199,16 @@ def plot_volume(
             popts, _ = fit_result[fn]
             ys.append(np.linspace(cell_volumes[0], cell_volumes[-1], num=100))
             xs.append(fn(ys, *popts).reshape(-1))  # type: ignore
-            labels.append(PLOT_BM_LABELS[fn])
+
+            if fn in PLOT_BM_LABELS:
+                labels.append(PLOT_BM_LABELS[fn])
+            else:
+                # This is a slightly gross handling of the wrapped `partial` fn used for BM 3rd_pc
+                # If the text `pc` is ever removed from the function name, or other `pc` fits are used,
+                # then this will break
+                if "pc" in str(fn):
+                    key = [k for k in PLOT_BM_LABELS if "pc" in str(k)][0]
+                    labels.append(PLOT_BM_LABELS[key])
     elif data_type == PASCalDataType.ELECTROCHEMICAL:
         # use chebyshev fits
         _, coeffs = get_best_chebyshev_volume_fit(fit_result["chebyshev"])
@@ -303,42 +312,37 @@ def plot_compressibility(
             )
         )
 
-        # TODO: fix
-        # figure.add_trace(
-        #     go.Scatter(
-        #         x=np.concatenate([x, x[::-1]]),
-        #         y=np.concatenate(
-        #             [
-        #                 compressibility[i] - compressibility_errors[i],
-        #                 (compressibility[i] - compressibility_errors[i])[::-1],
-        #             ]
-        #         ),
-        #         fill="toself",
-        #         fillcolor=PLOT_PALETTE[i],
-        #         line=dict(color=PLOT_PALETTE[i]),
-        #         name=k_label,
-        #         hoverinfo="skip",
-        #         opacity=0.25,
-        #     )
-        # )
+        K_low = compressibility[i] - compressibility_errors[i]
+        K_high = compressibility[i] + compressibility_errors[i]
+
+        figure.add_trace(
+            go.Scatter(
+                x=np.concatenate([x, x[::-1]]),
+                y=np.concatenate([K_high, K_low[::-1]]),
+                fill="toself",
+                fillcolor=PLOT_PALETTE[i],
+                line=dict(color=PLOT_PALETTE[i]),
+                name=k_label,
+                hoverinfo="skip",
+                opacity=0.25,
+            )
+        )
 
         xs = np.linspace(x[0], x[-1], num=200)
 
-        # figure.add_trace(
-        #     go.Scatter(
-        #         x=xs,
-        #         y=get_compressibility(
-        #             xs,
-        #             fit_results["empirical"][i][0][1],
-        #             fit_results["empirical"][i][0][2],
-        #             fit_results["empirical"][i][0][3],
-        #         )
-        #         * GPa_to_TPa,
-        #         mode="lines",
-        #         name=k_label,
-        #         line=dict(color=PLOT_PALETTE[i]),
-        #     )
-        # )
+        figure.add_trace(
+            go.Scatter(
+                x=xs,
+                y=get_compressibility(
+                    xs,
+                    *fit_results["empirical"][0][i][1:],
+                )
+                * GPa_to_TPa,
+                mode="lines",
+                name=k_label,
+                line=dict(color=PLOT_PALETTE[i]),
+            )
+        )
 
     figure.update_xaxes(
         title_text="Pressure (GPa)",
