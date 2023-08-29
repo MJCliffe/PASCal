@@ -5,7 +5,7 @@ on common inputs to the app.
 
 import warnings
 from functools import partial
-from PASCal.app import PASCalDataType, app, _parse_form_options
+from PASCal.app import app
 
 from pytest import fixture
 from bs4 import BeautifulSoup
@@ -97,7 +97,7 @@ def test_p_sample_data(
         "FiniteStrain": "True",
         "DegPolyCap": "",
         "DegPolyVol": "",
-        "UsePc": "True",
+        "Pc": "True",
         "PcVal": "0.19",
         "data": sample_p,
     }
@@ -151,7 +151,7 @@ def test_q_sample_data(
         "DataType": "Electrochemical",
         "EulerianStrain": "True",
         "FiniteStrain": "True",
-        "UsePc": "False",
+        "Pc": "False",
         "PcVal": "",
         "DegPolyCap": 4,
         "DegPolyVol": 5,
@@ -198,20 +198,22 @@ def test_q_sample_data(
 
 
 def test_parse_options():
+    from PASCal.options import Options, PASCalDataType
+
     form_example = {
         "DataType": "Temperature",
-        "UsePc": "True",
+        "Pc": "True",
         "PcVal": "0.19",
         "EulerianStrain": "True",
         "DegPolyVol": "10",
         "DegPolyCap": "12",
         "FiniteStrain": "False",
     }
-    options = _parse_form_options(form_example)
+    options = Options.from_form(form_example)
     assert options.data_type == PASCalDataType.TEMPERATURE
-    assert options.use_pc
+    assert options.use_pc == True
     assert options.pc_val == 0.19
     assert options.eulerian_strain
-    assert options.deg_poly_cap == 12
+    assert options.deg_poly_strain == 12
     assert options.deg_poly_vol == 10
     assert not options.finite_strain
