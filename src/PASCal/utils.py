@@ -21,6 +21,8 @@ Temperature: TypeAlias = np.ndarray
 def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
     """Rounding the number to desired decimal places
     `round()` is more accurate at rounding float numbers than `np.round()`.
+    Also lets string values pass through.
+    Primarily used to rendering the results tables.
 
     Parameters:
         var: The array or scalar to round.
@@ -34,7 +36,10 @@ def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
         return round(var, dec)  # type: ignore
 
     for indices, val in np.ndenumerate(var):
-        var[indices] = round(val, dec)
+        if isinstance(val, str) and val == "n/a":
+            var[indices] = val
+        else:
+            var[indices] = round(val, dec)
     return var
 
 
