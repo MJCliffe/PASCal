@@ -469,7 +469,7 @@ def output():
 
         CalEpsilon0 = np.array([CalEmPopt[0][0], CalEmPopt[1][0], CalEmPopt[2][0]])
         CalLambda = np.array([CalEmPopt[0][1], CalEmPopt[1][1], CalEmPopt[2][1]])
-        CalPc = np.array([CalEmPopt[0][2], CalEmPopt[1][1], CalEmPopt[2][2]])
+        CalPc = np.array([CalEmPopt[0][2], CalEmPopt[1][2], CalEmPopt[2][2]])
         CalNu = np.array([CalEmPopt[0][3], CalEmPopt[1][3], CalEmPopt[2][3]])
         PrinComp = np.array(
             [K[0][u], K[1][u], K[2][u]]
