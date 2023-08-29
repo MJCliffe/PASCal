@@ -30,7 +30,6 @@ from PASCal.fitting import (
     get_best_chebyshev_volume_fit,
 )
 import PASCal.utils
-import PASCal._legacy
 import numpy as np
 
 
@@ -339,9 +338,9 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
 
     warning = options.precheck_inputs(x)
     print(f"Performing fit with {options=}")
-    cell_volumes = PASCal._legacy.CellVol(unit_cells)
+    cell_volumes = PASCal.utils.cell_vols(unit_cells)
 
-    orthonormed_cells = PASCal._legacy.Orthomat(unit_cells)  # cell in orthogonal axes
+    orthonormed_cells = PASCal.utils.orthomat(unit_cells)  # cell in orthogonal axes
 
     strain = PASCal.utils.calculate_strain(
         orthonormed_cells,
