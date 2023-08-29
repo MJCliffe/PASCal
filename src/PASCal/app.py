@@ -2,7 +2,6 @@ from typing import Tuple
 import os
 import json
 
-import PASCal._legacy
 from PASCal.constants import PERCENT
 from PASCal.core import PASCalResults, fit
 from PASCal.options import Options, PASCalDataType
@@ -94,11 +93,11 @@ def _render_results(results: PASCalResults) -> str:
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
             Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
-            MedianPrinAxCryst=PASCal._legacy.Round(
+            MedianPrinAxCryst=PASCal.utils.round_array(
                 results.median_principal_axis_crys, 4
             ),
             Vol=PASCal.utils.round_array(results.cell_volumes, 4),
-            PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
+            PrinAxCryst=PASCal.utils.round_array(results.principal_axis_crys, 4),
             TPx=results.x,
             DiagStrain=np.round(results.diagonal_strain * PERCENT, 4),
             TPxError=results.x_errors,
@@ -120,20 +119,20 @@ def _render_results(results: PASCalResults) -> str:
             PlotDerivJSON=results.plot_compressibility(return_json=True),
             Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
-            MedianPrinAxCryst=PASCal._legacy.Round(
+            MedianPrinAxCryst=PASCal.utils.round_array(
                 results.median_principal_axis_crys, 4
             ),
-            PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
+            PrinAxCryst=PASCal.utils.round_array(results.principal_axis_crys, 4),
             BMOrder=["2nd", "3rd"] + ["3rd with Pc"] if results.options.use_pc else [],
             TPxError=results.x_errors,
             u=results.median_x,
             UsePc=results.options.use_pc,
             Latt=results.unit_cells,
-            K=PASCal._legacy.Round(results.compressibility, 4),
-            KErr=PASCal._legacy.Round(results.compressibility_errors, 4),
+            K=PASCal.utils.round_array(results.compressibility, 4),
+            KErr=PASCal.utils.round_array(results.compressibility_errors, 4),
             TPx=results.x,
             DiagStrain=np.round(results.diagonal_strain * PERCENT, 4),
-            Vol=PASCal._legacy.Round(results.cell_volumes, 4),
+            Vol=PASCal.utils.round_array(results.cell_volumes, 4),
             **{
                 k: PASCal.utils.round_array(results.named_coefficients[k], 4)
                 for k in results.named_coefficients
@@ -152,15 +151,15 @@ def _render_results(results: PASCalResults) -> str:
             PlotResidualJSON=results.plot_residual(return_json=True),
             Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
-            MedianPrinAxCryst=PASCal._legacy.Round(
+            MedianPrinAxCryst=PASCal.utils.round_array(
                 results.median_principal_axis_crys, 4
             ),
-            PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
+            PrinAxCryst=PASCal.utils.round_array(results.principal_axis_crys, 4),
             TPxError=results.x_errors,
             Latt=results.unit_cells,
             TPx=results.x,
             DiagStrain=np.round(results.diagonal_strain * PERCENT, 4),
-            Vol=PASCal._legacy.Round(results.cell_volumes, 4),
+            Vol=PASCal.utils.round_array(results.cell_volumes, 4),
             **{
                 k: PASCal.utils.round_array(results.named_coefficients[k], 4)
                 for k in results.named_coefficients
