@@ -26,6 +26,8 @@ from PASCal.fitting import (
     fit_chebyshev,
     fit_birch_murnaghan_volume_pressure,
     fit_empirical_strain_pressure,
+    get_best_chebyshev_strain_fit,
+    get_best_chebyshev_volume_fit,
 )
 import PASCal.utils
 import PASCal._legacy
@@ -263,17 +265,23 @@ class PASCalResults:
                     axis += 1
 
         if self.options.data_type == PASCalDataType.ELECTROCHEMICAL:
+            best_degrees, _ = get_best_chebyshev_strain_fit(
+                self.strain_fits["chebyshev"]
+            )
             self.named_coefficients["XCal"] = np.array(
                 [
                     np.polynomial.chebyshev.chebval(
-                        self.x, self.strain_fits["chebyshev"][0][i]
+                        self.x, self.strain_fits["chebyshev"][best_degrees[i]][0][i]
                     )
                     for i in range(3)
                 ]
             )
             cheby_deriv = [
                 np.polynomial.chebyshev.chebder(
-                    self.strain_fits["chebyshev"][0][i], m=1, scl=1, axis=0
+                    self.strain_fits["chebyshev"][best_degrees[i]][0][i],
+                    m=1,
+                    scl=1,
+                    axis=0,
                 )
                 for i in range(3)
             ]
@@ -284,8 +292,17 @@ class PASCalResults:
                     for i in range(3)
                 ]
             )
+            best_degree, vol_coeff = get_best_chebyshev_volume_fit(
+                self.volume_fits["chebyshev"]
+            )
             self.named_coefficients["VolCheb"] = np.polynomial.chebyshev.chebval(
-                self.x, self.volume_fits["chebyshev"][0]
+                self.x, self.volume_fits["chebyshev"][best_degree][0]
+            )
+
+            vol_der = np.polynomial.chebyshev.chebder(vol_coeff, m=1, scl=1, axis=0)
+            self.named_coefficients["VolCoef"] = (
+                np.polynomial.chebyshev.chebval(self.x, vol_der)[self.median_x]
+                * mAhg_to_kAhg
             )
 
 
@@ -392,15 +409,35 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
             volume_fits[k] = bm_popts[k], bm_pcovs[k]
 
     elif options.data_type == PASCalDataType.ELECTROCHEMICAL:
-        strain_fits["chebyshev"] = fit_chebyshev(
-            diagonal_strain,
-            x,
-            options.deg_poly_strain,
-        )
-        volume_fits["chebyshev"] = fit_chebyshev(cell_volumes, x, options.deg_poly_vol)
+        strain_fits["chebyshev"] = {}
+        for deg in range(1, options.deg_poly_strain + 1):
+            strain_fits["chebyshev"][deg] = fit_chebyshev(
+                diagonal_strain,
+                x,
+                deg,
+            )
+        volume_fits["chebyshev"] = {}
+        for deg in range(1, options.deg_poly_vol + 1):
+            volume_fits["chebyshev"][deg] = fit_chebyshev(cell_volumes, x, deg)
 
-        cheb_derivative = np.zeros((3, len(x)))
-        principal_components = [cheb_derivative[i][median_x] for i in range(3)]
+        best_degrees, best_coeffs = get_best_chebyshev_strain_fit(
+            strain_fits["chebyshev"]
+        )
+
+        cheby_deriv_coeffs = [
+            np.polynomial.chebyshev.chebder(
+                strain_fits["chebyshev"][best_degrees[i]][0][i],
+                m=1,
+                scl=1,
+                axis=0,
+            )
+            for i in range(3)
+        ]
+        deriv = [
+            mAhg_to_kAhg * np.polynomial.chebyshev.chebval(x, cheby_deriv_coeffs[i])
+            for i in range(3)
+        ]
+        principal_components = [deriv[i][median_x] for i in range(3)]
 
     norm_crax = PASCal.utils.normalise_crys_axes(
         crys_prin_ax[median_x, :, :], principal_components
