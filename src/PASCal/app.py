@@ -92,7 +92,7 @@ def _render_results(results: PASCalResults) -> str:
             PlotStrainJSON=results.plot_strain(return_json=True),
             PlotVolumeJSON=results.plot_volume(return_json=True),
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
-            Axes=["X1", "X2", "X3", "V"],
+            Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
             MedianPrinAxCryst=PASCal._legacy.Round(
                 results.median_principal_axis_crys, 4
@@ -118,7 +118,7 @@ def _render_results(results: PASCalResults) -> str:
             PlotVolumeJSON=results.plot_volume(return_json=True),
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
             PlotDerivJSON=results.plot_compressibility(return_json=True),
-            Axes=["X1", "X2", "X3", "V"],
+            Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
             MedianPrinAxCryst=PASCal._legacy.Round(
                 results.median_principal_axis_crys, 4
@@ -148,7 +148,7 @@ def _render_results(results: PASCalResults) -> str:
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
             PlotDerivJSON=results.plot_charge_derivative(return_json=True),
             PlotResidualJSON=results.plot_residual(return_json=True),
-            Axes=["X1", "X2", "X3", "V"],
+            Axes=["X<sub>1</sub>", "X<sub>2</sub>", "X<sub>3</sub>", "V"],
             PrinComp=np.round(results.principal_components, 4),
             MedianPrinAxCryst=PASCal._legacy.Round(
                 results.median_principal_axis_crys, 4
