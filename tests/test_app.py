@@ -97,7 +97,7 @@ def test_p_sample_data(
         "FiniteStrain": "True",
         "DegPolyCap": "",
         "DegPolyVol": "",
-        "Pc": "True",
+        "UsePc": "True",
         "PcVal": "0.19",
         "data": sample_p,
     }
@@ -151,7 +151,7 @@ def test_q_sample_data(
         "DataType": "Electrochemical",
         "EulerianStrain": "True",
         "FiniteStrain": "True",
-        "Pc": "False",
+        "UsePc": "False",
         "PcVal": "",
         "DegPolyCap": 4,
         "DegPolyVol": 5,
@@ -202,7 +202,7 @@ def test_parse_options():
 
     form_example = {
         "DataType": "Temperature",
-        "Pc": "True",
+        "UsePc": "True",
         "PcVal": "0.19",
         "EulerianStrain": "True",
         "DegPolyVol": "10",

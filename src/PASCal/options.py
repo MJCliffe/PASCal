@@ -36,7 +36,7 @@ class Options:
     use_pc: bool = field(
         default=False,
         metadata={
-            "form": "Pc",
+            "form": "UsePc",
         },
     )
     """Whether to use the critical pressure to modify the fits."""

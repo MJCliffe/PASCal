@@ -247,6 +247,7 @@ class PASCalResults:
                     for k in self.volume_fits
                 ]
             )
+            breakpoint()
             self.named_coefficients["SigBPrime"] = np.array([0.0, 0.0, 0.0])
             self.named_coefficients["PcCoef"] = np.array(
                 [0.0, 0.0, self.options.pc_val]
