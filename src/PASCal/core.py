@@ -203,7 +203,6 @@ class PASCalResults:
             self.named_coefficients["VolCoef"] = -(
                 self.volume_fits["linear"].params[1] / self.cell_volumes[0] * GPa_to_TPa
             )
-
             self.named_coefficients["VolCoefErr"] = (
                 self.volume_fits["linear"].HC0_se[1] / self.cell_volumes[0] * GPa_to_TPa
             )
@@ -234,11 +233,17 @@ class PASCalResults:
                 [self.volume_fits[k][0][1] for k in self.volume_fits if k != "linear"]
             )
 
-            self.named_coefficients["SigB0"] = np.array([0.0, 0.0, 0.0])
+            sigmas = [
+                np.sqrt(np.diag(self.volume_fits[k][1]))
+                for k in self.volume_fits
+                if k != "linear"
+            ]
+
+            self.named_coefficients["SigB0"] = np.array([d[1] for d in sigmas])
             self.named_coefficients["V0"] = np.array(
                 [self.volume_fits[k][0][0] for k in self.volume_fits if k != "linear"]
             )
-            self.named_coefficients["SigV0"] = np.array([0.0, 0.0, 0.0])
+            self.named_coefficients["SigV0"] = np.array([d[0] for d in sigmas])
             self.named_coefficients["BPrime"] = np.array(
                 [
                     self.volume_fits[k][0][2]
@@ -247,8 +252,9 @@ class PASCalResults:
                     for k in self.volume_fits
                 ]
             )
-            breakpoint()
-            self.named_coefficients["SigBPrime"] = np.array([0.0, 0.0, 0.0])
+            self.named_coefficients["SigBPrime"] = np.array(
+                [d[2] if len(d) > 2 else "n/a" for d in sigmas], dtype=object
+            )
             self.named_coefficients["PcCoef"] = np.array(
                 [0.0, 0.0, self.options.pc_val]
             )
