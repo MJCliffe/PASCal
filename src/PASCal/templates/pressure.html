@@ -271,7 +271,7 @@
                 Birch-Murnaghan fit</span>
             </div>
           </th>
-          {% if UsePc == "True" %}
+          {% if UsePc %}
           <th>
             <div class="tooltip">P<sub>3rd+Pc</sub>(GPa)<span class="tooltiptext">calculated pressure from 3rd order
                 Birch-Murnaghan with P<sub>c</sub> fit</span>
@@ -286,7 +286,7 @@
           <td>{{ CalPress[0][i] }}</td>
           <td>{{ CalPress[1][i] }}</td>
           <td>{{ CalPress[2][i] }}</td>
-          {% if UsePc == "True" %}
+          {% if UsePc %}
           <td>{{ CalPress[3][i] }}</td>
           {% endif %}
           <td>{{ Vol[i] }}</td>

@@ -126,6 +126,8 @@ def _render_results(results: PASCalResults) -> str:
             PrinAxCryst=PASCal._legacy.Round(results.principal_axis_crys, 4),
             BMOrder=["2nd", "3rd"] + ["3rd with Pc"] if results.options.use_pc else [],
             TPxError=results.x_errors,
+            u=results.median_x,
+            UsePc=results.options.use_pc,
             Latt=results.unit_cells,
             K=PASCal._legacy.Round(results.compressibility, 4),
             KErr=PASCal._legacy.Round(results.compressibility_errors, 4),
