@@ -59,7 +59,7 @@
 
         {% for i in range(3) %}
         <tr>
-          <td>{{ Axes[i] }}</td>
+          <td>{{ Axes[i] | safe }}</td>
           <td>{{ PrinComp[i] }}</td>
           <td>{{ KErr[i][u] }}</td>
           <td>{{ MedianPrinAxCryst[i][0] }}</td>
