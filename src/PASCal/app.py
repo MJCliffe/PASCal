@@ -5,6 +5,7 @@ import json
 from PASCal.constants import PERCENT
 from PASCal.core import PASCalResults, fit
 from PASCal.options import Options, PASCalDataType
+import PASCal.utils
 
 from flask import Flask, render_template, request, send_from_directory
 
