@@ -4,6 +4,11 @@ h1 {
   text-align: center;
 }
 
+.version_string {
+  text-align: center;
+}
+
+
 .image {
   display: block;
   margin-top: 30px;
@@ -33,10 +38,12 @@ h1 {
   font-size: 18px;
   padding: 10px 28px;
   border-radius: 8px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .sample {
-  text-align: right;  
+  text-align: right;
   background-color: red;
 }
 
@@ -88,7 +95,7 @@ table {
   border-bottom: 1px solid;
   border-collapse: collapse;
   margin-left: auto;
-  margin-right: auto;  
+  margin-right: auto;
 }
 
 th {
