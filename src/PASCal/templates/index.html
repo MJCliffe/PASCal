@@ -10,19 +10,25 @@
 <html>
    <body>
      <main>
-        <div class="page">          
+        <div class="page">
           <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo", width=300/ class="image">
           <h1 class="big_title">A web tool for Principal Axis Strain Calculations</h1>
+          <h3 class="version_string">version: v{{ __version__ }}</h3>
           <div class = "info">
-            <a class="link" href="https://github.com/MJCliffe/PASCal"><i class="fa-brands fa-github"></i> README on GitHub</a>
-            <div class="tooltip">
-                Hints available on mouseover.
-                <span class="tooltiptext">Hoverable titles will have wavy underlines.</span>
-            </div>
+            <table>
+                <tr>
+                    <td><a class="link" href="https://github.com/MJCliffe/PASCal"><i class="fa-brands fa-github"></i> Source code</a></td>
+            <td><a class="link" href="https://docs.pascalapp.co.uk"><i class="fa fa-book"></i> Documentation</a></td>
+            </table>
           </div>
           <form method="post" action="{{url_for('output')}}">
             <div class="input_area">
               <div class="option">
+                <h2>Options</h2>
+              <div class="tooltip">
+                Mouseover for help.
+                <span class="tooltiptext">Hoverable titles will have wavy underlines.</span>
+              </div>
                 <div class="subtitle">Data type:</div>
                 <input type="radio" id="temp" name="DataType" value="Temperature" required="required" checked>
                 <label for="temp">Temperature (K)</label>
@@ -38,7 +44,7 @@
                     Pressure-induced phase transition:
                     <span class="tooltiptext">Pressure only. Used if the phase has a phase transition between ambient pressure and the first data point.</span>
                   </div></div>
-                </div>                
+                </div>
                 <label for="Pc">Use a critical pressure?</label>
                 <input type="checkbox" id="Pc" name="UsePc" value="True">
                 <label for="PcVal">Critical pressure (GPa):</label>
@@ -48,7 +54,7 @@
               <div class="option">
                 <div class="subtitle"><div class="tooltip">Chebyshev polynomial fitting for electrochemical data:
                   <span class="tooltiptext">Electrochemical data only. Controls the maximum degree of the polynomial used to fit the strain and volume data.</span>
-                </div></div>                  
+                </div></div>
                 <label for="DegPolyCap"> Max degree of polynomial for strain (1-10): </label>
                 <input type="number" id="DegPolyCap" name="DegPolyCap" min="1" max="10" required="required">
                 <label for="DegPolyVol"> Max degree of polynomial for volume (1-10): </label>
@@ -64,7 +70,7 @@
                   <label for="eulerian">Eulerian strain</label>
                   <input type="radio" id="lagrangian" name="EulerianStrain" value="False" required="required" >
                   <label for="lagrangian">Lagrangian strain</label>
-                </div> 
+                </div>
                 <div>
                   <input type="radio" id="finite" name="FiniteStrain" value="True" required="required" checked>
                   <label for="finite">Finite strain</label>
@@ -74,7 +80,7 @@
               </div>
 
               <div class="option">
-                <div class="subtitle"> 
+                <div class="subtitle">
                   <div class=tooltip>
                     Non-ambient lattice parameters:<span class="tooltiptext">One phase only</span>
                   </div>
@@ -87,7 +93,7 @@
                 <div class=tooltip>&#945;<span class="tooltiptext">º</span></div>&nbsp;&nbsp;
                 <div class=tooltip>&#946;<span class="tooltiptext">º</span></div>&nbsp;&nbsp;
                 <div class=tooltip>&#947;<span class="tooltiptext">º</span></div>
-                <div class="datainput">              
+                <div class="datainput">
                   <TEXTAREA class="info" name="data" id ="data" rows="20" cols="66" class= "text_area" required="required" >
 #Variable Temperature Data for Ag3CoCN6 Phase II
 95      5       6.6200  11.3500 6.6230  90.0000 78.5000 90.0000
@@ -99,11 +105,11 @@
 245     5       6.6383  11.3969 6.5980  90.0000 78.3720 90.0000
 270     5       6.6401  11.4091 6.5956  90.0000 78.3490 90.0000
 300     5       6.6415  11.4251 6.5959  90.0000 78.2840 90.0000
-                  </TEXTAREA>    
-                </div>           
+                  </TEXTAREA>
+                </div>
               </div>
 
-              <button type="submit" class="calbutton" onclick="Error_Message()">Calculate principal axes</button>                         
+              <button type="submit" class="calbutton" onclick="Error_Message()">Calculate principal axes</button>
               <script>
                 function Error_Message() {
                   if ((document.getElementById('temp').checked === true) || (document.getElementById('press').checked === true)) {
@@ -118,7 +124,7 @@
               </script>
               </div>
             </div>
-          </form>              
+          </form>
           <div class="option">
             <button onclick="ClearAll()">Clear</button>
             <script>
@@ -128,7 +134,7 @@
                 document.getElementById('press').checked = false;
                 document.getElementById('elec').checked = false;
                 document.getElementById('eulerian').checked = true;
-                document.getElementById('finite').checked = true;                  
+                document.getElementById('finite').checked = true;
                 document.getElementById('Pc').checked = false;
                 document.getElementById('PcVal').value = ''
                 document.getElementById('DegPolyCap').value = ''
@@ -284,7 +290,7 @@
                 document.getElementById('DegPolyVol').value = 5
               }
             </script>
-          </div> 
+          </div>
           <div class = "option">
         Developed by Monthakan Lertkiattrakul and <a class="link" href="https://cliffe.nottingham.ac.uk/">Matthew Cliffe</a> at the University of Nottingham, with contributions from <a href="https://ml-evs.science">Matthew Evans</a>,
         based off the <a href="http://pascal.chem.ox.ac.uk/">original version</a> developed by Matthew Cliffe and <a href="http://goodwin.chem.ox.ac.uk/">Andrew Goodwin</a> at the University of Oxford.

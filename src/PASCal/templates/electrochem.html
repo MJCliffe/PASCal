@@ -1,7 +1,7 @@
 <!doctype html>
 
 <head>
-  <title>PASCal Beta Electrochemical Output</title>
+    <title>PASCal Electrochemical Output</title>
   <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='PASCal_icon.png') }}" />
   <link rel="stylesheet" href="{{ url_for('static',filename='styles.css')}}" />
 </head>
@@ -12,13 +12,14 @@
     <div class="page">
       <img src="{{ url_for('static', filename='images/PASCal_logo_v1.png') }}" alt="PASCal Logo" , width=300/
         class="image">
+      <h3 class="version_string">version: v{{ __version__ }}</h3>
       {% if warning is defined and warning %}
-      <h2>WARNINGS</h2> 
+      <h2>WARNINGS</h2>
       <ol>
       {% for warn in warning %}
       <li>{{warn}}</li>
       {% endfor %}
-      </ol>        
+      </ol>
       {% endif %}
       <h2>Output</h2>
       <table>

@@ -5,6 +5,7 @@ import json
 from PASCal.constants import PERCENT
 from PASCal.core import PASCalResults, fit
 from PASCal.options import Options, PASCalDataType
+from PASCal import __version__
 import PASCal.utils
 
 from flask import Flask, render_template, request, send_from_directory
@@ -19,7 +20,7 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     print("Request for index page received")
-    return render_template("index.html")
+    return render_template("index.html", __version__=__version__)
 
 
 @app.route("/favicon.ico")
@@ -88,6 +89,7 @@ def _render_results(results: PASCalResults) -> str:
         return render_template(
             "temperature.html",
             config=json.dumps(PLOTLY_CONFIG),
+            __version__=__version__,
             warning=results.warning,
             PlotStrainJSON=results.plot_strain(return_json=True),
             PlotVolumeJSON=results.plot_volume(return_json=True),
@@ -114,6 +116,7 @@ def _render_results(results: PASCalResults) -> str:
             "pressure.html",
             config=json.dumps(PLOTLY_CONFIG),
             warning=results.warning,
+            __version__=__version__,
             PlotStrainJSON=results.plot_strain(return_json=True),
             PlotVolumeJSON=results.plot_volume(return_json=True),
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
@@ -145,6 +148,7 @@ def _render_results(results: PASCalResults) -> str:
             "electrochem.html",
             config=json.dumps(PLOTLY_CONFIG),
             warning=results.warning,
+            __version__=__version__,
             PlotStrainJSON=results.plot_strain(return_json=True),
             PlotVolumeJSON=results.plot_volume(return_json=True),
             PlotIndicJSON=results.plot_indicatrix(return_json=True),
