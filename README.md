@@ -2,14 +2,14 @@
 <img width="300px" align="center" src="./src/PASCal/static/images/PASCal_logo_v1.png">
 </div>
 
-Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data. It is written entirely in Python, using plotly to visualise the data, and as a web tool the code is designed to be used online, though it can be used offline with a local flask instance or by adapting the code for your own applications. The web tool is available at [pascal-notts.azurewebsites.net](https://pascal-notts.azurewebsites.net), the code at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub.
+Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data. It is written entirely in Python, using plotly to visualise the data, and as a web tool the code is designed to be used online, though it can be used offline with a local flask instance or by adapting the code for your own applications. The web tool is available at [pascalapp.co.uk](https://pascalapp.co.uk), the code at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub, and the documentation at [docs.pascalapp.co.uk](https://docs.pascalapp.co.uk).
 
 A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)). Please cite this if you use PASCal in a publication. This publication was produced for a previous version of PASCal and so description of the software itself is out of date. PASCal is designed might not be the most appropriate method for full analysis of your data, so please read the sections below on [errors](#errors), [fitting](#fitting) and [strains](#strain-calculation) if you have particular needs.
 
 # Quick start
 
-PASCal takes experimentally determined lattice parameters measured as a function of a parameter (temperature, pressure or state of charge), then calculates the strain matrix, diagonalises this matrix to find the principal strains, and then carries out fits to simple functions to get summary metrics. 
-Paste your data in, click calculate and see the results! 
+PASCal takes experimentally determined lattice parameters measured as a function of a parameter (temperature, pressure or state of charge), then calculates the strain matrix, diagonalises this matrix to find the principal strains, and then carries out fits to simple functions to get summary metrics.
+Paste your data in, click calculate and see the results!
 There are helpful tips on hover, but more detailed information is below.
 
 ## Input
@@ -59,7 +59,7 @@ The raw data plotted in the plots is shown in the tables at the bottom of the pa
 
 PASCal does not use uncertainties in cell parameters or volumes in its fitting or strain calculations, and instead only uses errors in the control parameter, $x$. The uncertainties in $x$ are used as weights for both linear and non-linear fitting but are not directly propagated through to the final parameter uncertainties. This usually provides a reasonable approximation as typically the inherent scatter of the strain is the primary source of uncertainty in the fitted parameter. In the case that the data has very small errors, this method will overestimate the magnitude of the errors. It can also prove inaccurate for small data sets.
 
-If you have the magnitudes of the errors on your lattice parameters, it is possible to propagate those errors through to get more accurate estimates, and [some software packages](#other-useful-software) (e.g. WINStrain) can give you errors on strains from errors on lattice parameters. However, to get very accurate estimates of errors it is also necessary to include the covariance of lattice parameters, and for low symmetry systems, the propagation of errors in lattice parameter angles to strain errors is a problem with no unique solution. 
+If you have the magnitudes of the errors on your lattice parameters, it is possible to propagate those errors through to get more accurate estimates, and [some software packages](#other-useful-software) (e.g. WINStrain) can give you errors on strains from errors on lattice parameters. However, to get very accurate estimates of errors it is also necessary to include the covariance of lattice parameters, and for low symmetry systems, the propagation of errors in lattice parameter angles to strain errors is a problem with no unique solution.
 Additionally, since the errors that are calculated from Rietveld fits or single crystal calculations often seem to underestimate the true errors in lattice parameters, these will underestimate the true error in your calculated values if used naively (see [Haestier, J Appl. Cryst 2009, 42, 798](https://doi.org/10.1107/S0021889809024376), [Herbstein, Acta Cryst B 2000, 56, 547](https://doi.org/10.1107/S010876810000269X); [Taylor, R. & Kennard, O. Acta Cryst B 1986, 42, 112.](https://doi.org/10.1107/S0108768186098506))
 
 In PASCal, linear fits use White’s heteroscedascity consistent error estimates and non-linear fits use the residuals to calculate the error estimates.
