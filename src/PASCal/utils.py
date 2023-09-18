@@ -69,7 +69,7 @@ def orthomat(lattices: np.ndarray) -> np.ndarray:
     orth[:, 1, 0] = np.cos(gaS) / (lattices[:, 1] * np.sin(alphas) * np.sin(gaS))
     orth[:, 2, 0] = (
         np.cos(alphas) * np.cos(gaS) / np.sin(alphas) + np.cos(betas) / np.sin(betas)
-    ) / (-1 * lattices[:, 1] * np.sin(gaS))
+    ) / (-1 * lattices[:, 2] * np.sin(gaS))
     orth[:, 1, 1] = 1 / (lattices[:, 1] * np.sin(alphas))
     orth[:, 2, 1] = -1 * np.cos(alphas) / (lattices[:, 2] * np.sin(alphas))
     orth[:, 2, 2] = 1 / lattices[:, 2]

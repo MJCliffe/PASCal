@@ -355,7 +355,7 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
 
     ### Axes matching
     principal_axes, diagonal_strain = PASCal.utils.match_axes(
-        principal_axes, unit_cells, diagonal_strain
+        principal_axes, orthonormed_cells, diagonal_strain
     )
 
     ### Calculating Eigenvectors and Cells in different coordinate systems
