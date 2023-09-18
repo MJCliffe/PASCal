@@ -2,4 +2,5 @@ nav:
     - index.md
     - "License": LICENSE.md
     - CONTRIBUTING.md
+    - "Examples": examples
     - "API Reference": api_reference

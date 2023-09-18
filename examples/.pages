@@ -1,0 +1,4 @@
+nav:
+    - "Pressure": pressure.ipynb
+    - "Temperature": temperature.ipynb
+    - "Electrochemical": electrochemical.ipynb

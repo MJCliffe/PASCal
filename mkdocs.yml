@@ -81,4 +81,8 @@ plugins:
               - "!__init__$"
   - awesome-pages
   - autorefs
-
+  - mkdocs-jupyter:
+     execute: true
+     allow_errors: false
+     # to allow plotly to generate and show plots in deployed docs
+     include_requirejs: true
