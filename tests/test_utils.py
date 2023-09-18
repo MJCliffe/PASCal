@@ -52,9 +52,9 @@ def test_orthomat():
         ]
     )
     for i in range(M.shape[0]):
-        np.testing.assert_array_almost_equal(orth[i], M[i], decimal=5)
-    np.testing.assert_array_almost_equal(orth, M, decimal=5)
-    np.testing.assert_array_almost_equal(orth, Orthomat(lattice), decimal=5)
+        np.testing.assert_array_almost_equal(orth[i], M[i])
+    np.testing.assert_array_almost_equal(orth, M)
+    np.testing.assert_array_almost_equal(orth, Orthomat(lattice))
 
 
 def test_cell_vols():
