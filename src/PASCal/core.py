@@ -127,13 +127,16 @@ class PASCalResults:
         )
 
     def plot_indicatrix(
-        self, return_json: bool = False
+        self,
+        return_json: bool = False,
+        plot_size: int = 800,
     ) -> Union[str, plotly.graph_objs.Figure]:
         return plot_indicatrix(
             self.norm_crax,
             *self.indicatrix,
             self.options.data_type,
             return_json=return_json,
+            plot_size=plot_size,
         )
 
     def plot_compressibility(
