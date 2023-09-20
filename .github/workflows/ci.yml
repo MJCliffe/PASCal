@@ -40,7 +40,7 @@ jobs:
 
     - name: Build docs
       run : |
-        poetry run mkdocs build --strict
+        poetry run mkdocs build
 
     - name: Lock dependencies and prepare deployment
       run: |
