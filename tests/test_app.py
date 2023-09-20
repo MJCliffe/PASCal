@@ -178,24 +178,26 @@ def test_q_sample_data(
     assert len(tables) == 6
 
     try:
-        # TODO: pin down why these values are different compared to the deployment
         check_tables(
             [td.text for td in tables[0].find_all("td")], sample_q_output
         ), "Output table failed"
     except AssertionError:
-        warnings.warn("Output table did not match for echem data")
+        warnings.warn(
+            "Output table did not match for echem data, probably due to degeneracy in principal axes"
+        )
 
     check_tables(
         [td.text for td in tables[1].find_all("td")], sample_q_delta_length
     ), "% length failed"
 
     try:
-        # TODO: pin down why these values are different compared to the deployment
         check_tables(
             [td.text for td in tables[2].find_all("td")], sample_q_principal_axes
         ), "Principal axes table failed"
     except AssertionError:
-        warnings.warn("Output table did not match for echem data")
+        warnings.warn(
+            "Output table did not match for echem data, probably due to degeneracy in principal axes"
+        )
 
     check_tables(
         [td.text for td in tables[3].find_all("td")], sample_q_charge_derivative
