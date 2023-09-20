@@ -2,7 +2,10 @@
 <img width="300px" align="center" src="./src/PASCal/static/images/PASCal_logo_v1.png">
 </div>
 
-Principal Axis Strain Calculator (PASCal) is a web tool designed to help scientists analyse non-ambient lattice parameter data. It is written entirely in Python, using plotly to visualise the data, and as a web tool the code is designed to be used online, though it can be used offline with a local flask instance or by adapting the code for your own applications. The web tool is available at [pascalapp.co.uk](https://pascalapp.co.uk), the code at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub, and the documentation at [docs.pascalapp.co.uk](https://docs.pascalapp.co.uk).
+Principal Axis Strain Calculator (PASCal) is a web tool and open source software package designed to help scientists analyse non-ambient lattice parameter data.
+It is written entirely in Python, using plotly to visualise the data, and is also available without installation as a web tool, available at [pascalapp.co.uk](https://pascalapp.co.uk).
+The code is available at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub, and the documentation at [docs.pascalapp.co.uk](https://docs.pascalapp.co.uk).
+Installation instructions can be found [below](#offline-installation), and example Jupyter notebooks showcasing the functionality can be found in `./examples` folder on GitHub, or in the online documentation.
 
 A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)). Please cite this if you use PASCal in a publication. This publication was produced for a previous version of PASCal and so description of the software itself is out of date. PASCal is designed might not be the most appropriate method for full analysis of your data, so please read the sections below on [errors](#errors), [fitting](#fitting) and [strains](#strain-calculation) if you have particular needs.
 
@@ -90,8 +93,8 @@ pip install poetry
 poetry install
 ```
 
-You can then launch the app with `flask --app src/PASCal/app.py run` and access the app in your browser at [http://localhost:5000](http://localhost:5000) (by default).
-The software has been designed to run as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
+You can then either launch the app with `flask --app src/PASCal/app.py run` and access the app in your browser at [http://localhost:5000](http://localhost:5000) (by default), or simply use the Python library in your own scripts.
+The software was initially designed to used as a web app, but please do submit any issues to the [GitHub Repository](./CONTRIBUTING.md).
 
 ## Issues and Feature Requests
 
@@ -101,7 +104,7 @@ If you find any bugs in the code, errors in the documentation or have any featur
 
 There are a wide range of other useful programs available:
 
-- [WINstrain and EOSfit](https://www.rossangel.com/). WINStrain provides a large number of different options for
+- [WINstrain and EOSfit](http://www.rossangel.com/). WINStrain provides a large number of different options for
 calculating strains from lattice parameters, but is no longer supported. EOSfit is a powerful tool for  fitting equations of state (principally pressure).
 - [STRAIN](https://www.cryst.ehu.es/cryst/strain.html). The Bilbao Crystallographic Server can calculate strain calculations for a single pair of lattice parameters.
 - [ELATE](https://progs.coudert.name/elate). A tool for analysing full elastic constant tensors.
