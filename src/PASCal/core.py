@@ -248,10 +248,9 @@ class PASCalResults:
             self.named_coefficients["SigV0"] = np.array([d[0] for d in sigmas])
             self.named_coefficients["BPrime"] = np.array(
                 [
-                    self.volume_fits[k][0][2]
-                    if k != "linear" and len(self.volume_fits[k][0]) > 2
-                    else 4
+                    self.volume_fits[k][0][2] if len(self.volume_fits[k][0]) > 2 else 4
                     for k in self.volume_fits
+                    if k != "linear"
                 ]
             )
             self.named_coefficients["SigBPrime"] = np.array(
