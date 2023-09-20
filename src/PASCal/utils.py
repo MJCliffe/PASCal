@@ -1,10 +1,9 @@
 """A series of utility functions used in the operation of PASCal."""
 
-import numpy as np
-from typing import Union, Tuple, Optional
 import itertools
-import statsmodels.api as sm
-from PASCal.constants import PERCENT
+from typing import Optional, Tuple, Union
+
+import numpy as np
 
 try:
     from typing import TypeAlias  # type: ignore[attr-defined]
@@ -395,7 +394,7 @@ def rotate_to_principal_axes(orthonormed_cells, principal_axes, median_x):
     max_axis = np.argmax(
         np.abs(principal_axis_crys), axis=2
     )  # find the largest value of each eigenvector
-    I, J = np.indices(max_axis.shape)
+    I, J = np.indices(max_axis.shape)  # noqa
     mask = principal_axis_crys[I, J, max_axis] < 0
     principal_axis_crys[mask, :] *= -1
     # transpositions to take advantage of broadcasting, not maths

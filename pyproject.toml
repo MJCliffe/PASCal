@@ -39,5 +39,25 @@ mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
 
 [tool.poetry.extras]
-test = ["pytest", "beautifulsoup4"]
+test = ["pytest", "beautifulsoup4", "pre-commit"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.4.0"
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.ruff]
+select = ["E", "F", "I", "W", "Q"]
+ignore = ["E501", "E402"]
+fixable = ["A", "B", "C", "D", "E", "F", "I"]
+unfixable = []
+extend-exclude = [
+    "providers",
+]
+target-version = "py310"
+per-file-ignores = {}
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

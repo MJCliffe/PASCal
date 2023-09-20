@@ -1,5 +1,6 @@
 import importlib.metadata
-from PASCal.core import fit, PASCalResults
+
+from PASCal.core import PASCalResults, fit
 
 __version__ = importlib.metadata.version("PASCal")
 

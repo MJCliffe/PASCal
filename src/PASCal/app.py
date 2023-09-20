@@ -1,17 +1,15 @@
-from typing import Tuple
-import os
 import json
+import os
+from typing import Tuple
 
+import numpy as np
+from flask import Flask, render_template, request, send_from_directory
+
+import PASCal.utils
+from PASCal import __version__
 from PASCal.constants import PERCENT
 from PASCal.core import PASCalResults, fit
 from PASCal.options import Options, PASCalDataType
-from PASCal import __version__
-import PASCal.utils
-
-from flask import Flask, render_template, request, send_from_directory
-
-import numpy as np
-
 from PASCal.plotting import PLOTLY_CONFIG
 
 app = Flask(__name__)

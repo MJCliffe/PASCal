@@ -1,13 +1,13 @@
-from PASCal.utils import (
-    normalise_crys_axes,
-    round_array,
-    orthomat,
-    cell_vols,
-)
-from PASCal._legacy import Round, Orthomat, CellVol, CompErr, NormCRAX
-import numpy as np
 import random
+
 import numpy as np
+from PASCal._legacy import CellVol, NormCRAX, Orthomat, Round
+from PASCal.utils import (
+    cell_vols,
+    normalise_crys_axes,
+    orthomat,
+    round_array,
+)
 
 
 def test_round_array():

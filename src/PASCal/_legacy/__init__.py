@@ -103,7 +103,7 @@ def CompErr(Pcov, TP, lambdaP, Pc, Nu):
         for j in range(0, 4):
             for i in range(0, 4):
                 KErrPoint = KErrPoint + Jac[j][n] * Jac[i][n] * Pcov[j][i]
-        KErr[n] = KErrPoint ** 0.5
+        KErr[n] = KErrPoint**0.5
     return KErr
 
 
@@ -174,7 +174,7 @@ def NormCRAX(CalCrax, PrinComp):
         lenIn = 0
         for j in range(0, 3):
             lenIn += CalCrax[i][j] ** 2
-        lens[i] = lenIn ** 0.5
+        lens[i] = lenIn**0.5
     maxlen = max(lens)
 
     for i in range(0, 3):  # normalise the axes
