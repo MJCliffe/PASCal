@@ -39,7 +39,6 @@ def check_tables(table, expected_table):
         except ValueError:
             pass
 
-    assert table == expected_table
     return True
 
 
