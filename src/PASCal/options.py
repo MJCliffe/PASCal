@@ -2,8 +2,9 @@
 when fitting strain and volume data.
 """
 from dataclasses import dataclass, field, fields
-from typing import Optional, Dict, Any, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
 
@@ -100,7 +101,7 @@ class Options:
         the options where possible.
 
         Returns:
-            The adjusted options and a list of warnings.
+            A list of warnings, if any.
 
         """
         if len(x) < 2:
@@ -127,7 +128,7 @@ class Options:
             if len(x) - 2 < self.deg_poly_strain:
                 deg_poly_strain = len(x) - 2
                 warning.append(
-                    f"The maximum degree of the Chebyshev strain polynomial has been lowered from {options.deg_poly_strain} to {deg_poly_strain}. "
+                    f"The maximum degree of the Chebyshev strain polynomial has been lowered from {self.deg_poly_strain} to {deg_poly_strain}. "
                     "At least as many data points as parameters are needed for a fit to be carried out. "
                     "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
                 )
@@ -135,7 +136,7 @@ class Options:
             if len(x) - 2 < self.deg_poly_vol:
                 deg_poly_vol = len(x) - 2
                 warning.append(
-                    f"The maximum degree of the Chebyshev volume polynomial has been lowered from {options.deg_poly_vol} to {deg_poly_vol}. "
+                    f"The maximum degree of the Chebyshev volume polynomial has been lowered from {self.deg_poly_vol} to {deg_poly_vol}. "
                     "At least as many data points as parameters are needed for a fit to be carried out. "
                     "As PASCal calculates errors from derivatives, more data points than parameters are needed for error estimates."
                 )

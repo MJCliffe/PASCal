@@ -3,17 +3,21 @@ strain and volume data.
 
 """
 
-from typing import List, Callable, Tuple, Union, Dict, Optional
 from functools import partial
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import statsmodels.api as sm
-
 from scipy.optimize import curve_fit
+
 from PASCal.utils import (
+    Charge,
+    Pressure,
+    Strain,
+    Temperature,
+    Volume,
     empirical_pressure_strain_relation,
 )
-from PASCal.utils import Strain, Pressure, Volume, Charge, Temperature
 
 
 def fit_linear_wls(

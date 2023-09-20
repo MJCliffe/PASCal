@@ -83,14 +83,12 @@ PASCal calculates finite Lagrangian strains by default. Options to use finite an
 ## Offline Installation
 
 PASCal can be also run offline using a browser as a GUI. This requires NumPy, Plotly and Flask. Full requirements (with versions) available in `pyproject.toml`.
-The package and its dependencies are managed with [Poetry](https://python-poetry.org/docs/#installing-with-the-official-installer), which has its own detailed installation insutructions.
-For the simplest use case, you can just clone or downloaded this repository, use `pip` to install `poetry` (ideally into a virtual environment of your choice), and then use `poetry` to install the app, by running, for example:
+For the simplest use case, you can just clone or downloaded this repository, and use `pip` to install the local copy of the repository (ideally into a virtual environment of your choice):
 
 ```shell
 git clone git@github.com:MJCliffe/PASCal
 cd PASCal
-pip install poetry
-poetry install
+pip install .
 ```
 
 You can then either launch the app with `flask --app src/PASCal/app.py run` and access the app in your browser at [http://localhost:5000](http://localhost:5000) (by default), or simply use the Python library in your own scripts.

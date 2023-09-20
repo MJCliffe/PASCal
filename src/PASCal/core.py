@@ -1,36 +1,38 @@
 """This module defines the core functionality of PASCal: the fit function and the results container."""
 
-import plotly.graph_objs
 from dataclasses import dataclass, field
-from typing import Union, List, Tuple, Any, Optional, Dict
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import plotly.graph_objs
+
+import PASCal.utils
+from PASCal.constants import PERCENT, GPa_to_TPa, K_to_MK, mAhg_to_kAhg
+from PASCal.fitting import (
+    fit_birch_murnaghan_volume_pressure,
+    fit_chebyshev,
+    fit_empirical_strain_pressure,
+    fit_linear_wls,
+    get_best_chebyshev_strain_fit,
+    get_best_chebyshev_volume_fit,
+)
 from PASCal.options import Options, PASCalDataType
 from PASCal.plotting import (
     plot_charge_derivative,
+    plot_compressibility,
     plot_indicatrix,
     plot_residual,
     plot_strain,
     plot_volume,
-    plot_compressibility,
 )
 from PASCal.utils import (
-    Strain,
-    Pressure,
-    Volume,
     Charge,
+    Pressure,
+    Strain,
     Temperature,
+    Volume,
     empirical_pressure_strain_relation,
 )
-from PASCal.constants import K_to_MK, GPa_to_TPa, PERCENT, mAhg_to_kAhg
-from PASCal.fitting import (
-    fit_linear_wls,
-    fit_chebyshev,
-    fit_birch_murnaghan_volume_pressure,
-    fit_empirical_strain_pressure,
-    get_best_chebyshev_strain_fit,
-    get_best_chebyshev_volume_fit,
-)
-import PASCal.utils
-import numpy as np
 
 
 @dataclass

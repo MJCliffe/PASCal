@@ -1,5 +1,6 @@
-from pytest import fixture
 from pathlib import Path
+
+from pytest import fixture
 
 
 def load_sample_inputs(filename):

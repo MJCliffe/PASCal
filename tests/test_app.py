@@ -4,12 +4,12 @@ on common inputs to the app.
 """
 
 import warnings
-import numpy as np
 from functools import partial
-from PASCal.app import app
 
-from pytest import fixture
+import numpy as np
 from bs4 import BeautifulSoup
+from PASCal.app import app
+from pytest import fixture
 
 
 @fixture(scope="session")
@@ -222,7 +222,7 @@ def test_parse_options():
     }
     options = Options.from_form(form_example)
     assert options.data_type == PASCalDataType.TEMPERATURE
-    assert options.use_pc == True
+    assert options.use_pc is True
     assert options.pc_val == 0.19
     assert options.eulerian_strain
     assert options.deg_poly_strain == 12

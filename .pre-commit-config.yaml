@@ -1,0 +1,33 @@
+default_language_version:
+  python: python3.10
+  node: 16.14.2
+
+repos:
+  - repo: https://github.com/ambv/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        name: Blacken
+        args: ["--config", "pyproject.toml"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: (pydatalab/example_data/)|(.*.snap)
+        args: [--markdown-linebreak-ext=md]
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: end-of-file-fixer
+        exclude: ^(pydatalab/example_data/|pydatalab/schemas)
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-symlinks
+      - id: mixed-line-ending
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.0.290"
+    hooks:
+      - id: ruff
+        args: [--fix]

@@ -1,24 +1,24 @@
-from typing import Dict, List, Union, Any
 import json
+from typing import Any, Dict, List, Union
 
+import numpy as np
 import plotly
 import plotly.graph_objs as go
 import plotly.subplots
-import numpy as np
 
-from PASCal.options import PASCalDataType
 from PASCal.constants import PERCENT, GPa_to_TPa, mAhg_to_kAhg
 from PASCal.fitting import get_best_chebyshev_strain_fit, get_best_chebyshev_volume_fit
+from PASCal.options import PASCalDataType
 from PASCal.utils import (
+    Charge,
+    Pressure,
+    Strain,
+    Temperature,
+    Volume,
     birch_murnaghan_2nd,
     birch_murnaghan_3rd,
     birch_murnaghan_3rd_pc,
     get_compressibility,
-    Pressure,
-    Temperature,
-    Charge,
-    Strain,
-    Volume,
 )
 
 PLOT_WIDTH: int = 500
