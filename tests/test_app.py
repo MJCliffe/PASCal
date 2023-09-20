@@ -4,6 +4,7 @@ on common inputs to the app.
 """
 
 import warnings
+import numpy as np
 from functools import partial
 from PASCal.app import app
 
@@ -29,6 +30,14 @@ def check_tables(table, expected_table):
             expected_table[ind] = "0.0"
         if table[ind] == "-0.0":
             table[ind] = "0.0"
+
+    for v1, v2 in zip(table, expected_table):
+        try:
+            v1 = float(v1)
+            v2 = float(v2)
+            np.testing.assert_almost_equal(v1, v2, decimal=3)
+        except ValueError:
+            pass
 
     assert table == expected_table
     return True
