@@ -16,7 +16,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
 ]
-homepage = "https://pascal-notts.azurewebsites.net"
+homepage = "https://pascalapp.co.uk"
+documentation = "https://docs.pascalapp.co.uk"
 repository = "https://github.com/MJCliffe/PASCal"
 packages = [{ include = "PASCal", from = "src" }]
 
