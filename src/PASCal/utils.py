@@ -44,7 +44,8 @@ def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
 
 def orthomat(lattices: np.ndarray) -> np.ndarray:
     """Compute the corresponding change-of-basis transformations
-    (square matrix $M$) in $E = M \\times A$.
+    (square matrix $M$) to the orthonormal axes $E$ from the
+    crystallographic axes $A$,  $E = M \\times A$.
 
     Parameters:
         lattices: An Nx6 array of lattice parameters $(a, b, c, α, β, γ)$
@@ -275,6 +276,7 @@ def normalise_crys_axes(
     calc_crys_ax: np.ndarray, principal_components: np.ndarray
 ) -> np.ndarray:
     """Normalise the crysallographic axes for the indicatrix plot
+    by dividing through the maximum eigenvalue.
 
     Parameters:
         calc_crys_ax: calculated crysallographic axes
@@ -319,7 +321,7 @@ def indicatrix(
 def calculate_strain(
     orthonormed_unit_cells: np.ndarray, mode: str = "eulerian", finite: bool = True
 ) -> np.ndarray:
-    """Calculates the strain from the normalized unit cell parameters.
+    """Calculates the strain from the orthonormal basis.
 
     Parameters:
         orthonormed_unit_cells: An N x 6 array of unit cell parameters in orthonormal axes.
@@ -358,7 +360,7 @@ def calculate_strain(
 def match_axes(
     principal_axes: np.ndarray, unit_cells: np.ndarray, diagonal_strain: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Matches the axes of the principal components to the first unit cell."""
+    """Matches the axes of the strain eigenvectors to the first strain."""
 
     for n in range(2, len(unit_cells)):
         # an array matching the axes against each other
@@ -380,6 +382,16 @@ def match_axes(
 
 
 def rotate_to_principal_axes(orthonormed_cells, principal_axes, median_x):
+    """Calculates the unit cell axes in the principal axis basis
+
+    Parameters:
+        orthonormed_unit_cells: An N x 6 array of unit cell parameters in orthonormal axes.
+        principal_axes: eigenvectors in orthonormal coordinates
+        median_x: index of the median data point
+
+    Returns:
+        The principal axes in the crystallographic frame and the reverse.
+    """
     principal_axis_crys = np.transpose(
         np.matmul(orthonormed_cells, principal_axes[:, :, :]), axes=[0, 2, 1]
     )  # Eigenvector projected on crystallographic axes, UVW
