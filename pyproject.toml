@@ -22,7 +22,7 @@ repository = "https://github.com/MJCliffe/PASCal"
 packages = [{ include = "PASCal", from = "src" }]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 Flask = "*"
 Jinja2 = "*"
 numpy = "*"
@@ -38,7 +38,7 @@ mkdocstrings = { version = "*", optional = true, extras = ["python-legacy"] }
 mkdocs-awesome-pages-plugin = { version = "*", optional = true }
 mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
-typing-extensions = "*"
+typing_extensions = "*"
 
 [tool.poetry.extras]
 test = ["pytest", "beautifulsoup4", "pre-commit"]
