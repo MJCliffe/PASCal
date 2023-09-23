@@ -3054,7 +3054,7 @@ test = ["argcomplete (>=2.0)", "pre-commit", "pytest", "pytest-mock"]
 name = "typing-extensions"
 version = "4.7.1"
 description = "Backported and Experimental Type Hints for Python 3.7+"
-optional = true
+optional = false
 python-versions = ">=3.7"
 files = [
     {file = "typing_extensions-4.7.1-py3-none-any.whl", hash = "sha256:440d5dd3af93b060174bf433bccd69b0babc3b15b1a8dca43789fd7f61514b36"},
@@ -3282,4 +3282,4 @@ test = ["beautifulsoup4", "pytest"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "8ec9cc387c6c5f0e7a010f5d0747eae70e20ea069a5e28b5fd32c63609df0ab7"
+content-hash = "09febde1411c985bbfefbfa1a0ce3c054130cfb45512125b77dce711939894f7"

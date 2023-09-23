@@ -30,6 +30,7 @@ pandas = "*"
 plotly = "*"
 scipy = "*"
 statsmodels = "*"
+typing-extensions = { version = "*", markers = "python_version <= '3.9'" }
 pytest = { version = "*", optional = true }
 beautifulsoup4 = { version = "*", optional = true }
 mkdocs = { version = "*", optional = true }
