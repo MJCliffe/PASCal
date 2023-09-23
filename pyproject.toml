@@ -38,6 +38,7 @@ mkdocstrings = { version = "*", optional = true, extras = ["python-legacy"] }
 mkdocs-awesome-pages-plugin = { version = "*", optional = true }
 mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
+typing-extensions = "*"
 
 [tool.poetry.extras]
 test = ["pytest", "beautifulsoup4", "pre-commit"]
