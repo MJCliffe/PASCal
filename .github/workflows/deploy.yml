@@ -16,10 +16,12 @@ jobs:
         submodules: true
 
 
-    - name: Set up Python 3.8
+    # while PASCal should work with any Python>=3.8 version,
+    # the Azure deployment uses Python 3.9
+    - name: Set up Python 3.9
       uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
+        python-version: '3.9'
         cache: 'pip'
         cache-dependency-path: |
           requirements*.txt
@@ -29,6 +31,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install poetry
         poetry install
+        poetry run python --version
 
     - name: Lock dependencies and prepare deployment
       run: |
