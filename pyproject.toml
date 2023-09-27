@@ -39,13 +39,11 @@ mkdocstrings = { version = "*", optional = true, extras = ["python-legacy"] }
 mkdocs-awesome-pages-plugin = { version = "*", optional = true }
 mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
+pre-commit = { version = "*", optional = true }
 
 [tool.poetry.extras]
-test = ["pytest", "beautifulsoup4", "pre-commit"]
+test = ["pytest", "beautifulsoup4", "pre-commit", "pre-commit"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "^3.4.0"
 
 [tool.mypy]
 ignore_missing_imports = true
