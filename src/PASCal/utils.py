@@ -17,7 +17,7 @@ Charge: TypeAlias = np.ndarray
 Temperature: TypeAlias = np.ndarray
 
 
-def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
+def round_array(var: Optional[np.ndarray], dec: int) -> Union[np.ndarray, float, None]:
     """Rounding the number to desired decimal places
     `round()` is more accurate at rounding float numbers than `np.round()`.
     Also lets string values pass through.
@@ -31,6 +31,9 @@ def round_array(var: np.ndarray, dec: int) -> Union[np.ndarray, float]:
         The rounded array or scalar.
 
     """
+    if var is None:
+        return None
+
     if var.ndim == 0:
         return round(var, dec)  # type: ignore
 
@@ -92,7 +95,7 @@ def cell_vols(lattices: np.ndarray) -> np.ndarray:
         np.radians(lattices[:, 4]),
         np.radians(lattices[:, 5]),
     )
-    return np.product(lattices[:, :3], axis=1) * np.sqrt(
+    return np.prod(lattices[:, :3], axis=1) * np.sqrt(
         (1 - np.cos(alphas) ** 2 - np.cos(betas) ** 2 - np.cos(gammas) ** 2)
         + (2 * np.cos(alphas) * np.cos(betas) * np.cos(gammas))
     )
@@ -287,7 +290,7 @@ def normalise_crys_axes(
 
     """
     maxalpha = np.abs(np.max(principal_components))
-    maxlen = np.max(np.linalg.norm(calc_crys_ax, axis=-1))
+    maxlen: float = np.max(np.linalg.norm(calc_crys_ax, axis=-1))
     return calc_crys_ax * maxalpha / maxlen
 
 
@@ -306,7 +309,7 @@ def indicatrix(
     """
     theta, phi = np.linspace(0, np.pi, 100), np.linspace(0, 2 * np.pi, 2 * 100)
     Θ, Φ = np.meshgrid(theta, phi)
-    max_component = np.max(np.abs(principal_components))
+    max_component: float = np.max(np.abs(principal_components))
     R = (
         principal_components[0] * (np.sin(Θ) * np.cos(Φ)) ** 2
         + principal_components[1] * (np.sin(Θ) * np.sin(Φ)) ** 2

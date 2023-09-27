@@ -1,4 +1,6 @@
-"""This module defines functions for linear, empirical or Chebyshev fitting to
+"""This module definnput_format = orig_ext
+6
+es functions for linear, empirical or Chebyshev fitting to
 strain and volume data.
 
 """
@@ -83,7 +85,7 @@ def fit_empirical_strain_pressure(
     linear_fit_results: List[sm.regression.linear_model.RegressionResultsWrapper],
     empirical_function: Callable[
         [Pressure, Strain, Tuple[float, ...]], np.ndarray
-    ] = empirical_pressure_strain_relation,
+    ] = empirical_pressure_strain_relation,  # type: ignore[assignment]
 ) -> Tuple[List[np.ndarray], List[np.ndarray], Callable]:
     """Fit an empirical function to the diagonal strain vs pressure data.
 
@@ -103,11 +105,9 @@ def fit_empirical_strain_pressure(
 
     """
 
-    bounds = np.array(
-        [
-            [-np.inf, -np.inf, -np.inf, -np.inf],
-            [np.inf, np.inf, np.min(pressure), np.inf],
-        ]
+    bounds = (
+        [-np.inf, -np.inf, -np.inf, -np.inf],
+        [np.inf, np.inf, np.min(pressure), np.inf],
     )
 
     popts: List[np.ndarray] = []
@@ -145,7 +145,7 @@ def fit_birch_murnaghan_volume_pressure(
     pressure: Pressure,
     pressure_errors: Pressure,
     critical_pressure: Optional[float] = None,
-) -> Tuple[Dict[Callable, np.ndarray]]:
+) -> Tuple[Dict[Callable, np.ndarray], Dict[Callable, np.ndarray]]:
     """Make a series of Birch-Murnaghan (BM) fits to the cell volume vs pressure data.
 
     Parameters:
@@ -188,8 +188,8 @@ def fit_birch_murnaghan_volume_pressure(
         maxfev=5000,
     )
 
-    init_params_3rd: np.ndarray = (
-        np.array([cell_volumes[0], popts[birch_murnaghan_2nd][1], b_prime / dp]),
+    init_params_3rd: np.ndarray = np.array(
+        [cell_volumes[0], popts[birch_murnaghan_2nd][1], b_prime / dp]
     )
 
     popts[birch_murnaghan_3rd], pcovs[birch_murnaghan_3rd] = curve_fit(

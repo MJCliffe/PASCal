@@ -117,7 +117,7 @@ class Options:
                 )
             if self.use_pc and self.pc_val:
                 if np.amin(x) < self.pc_val:
-                    pc_val = np.min(x)
+                    pc_val: float = np.min(x)
                     warning.append(
                         "The critical pressure has to be smaller than the lower pressure data point. "
                         f"Critical pressure has been set to the minimum value: {pc_val} GPa."

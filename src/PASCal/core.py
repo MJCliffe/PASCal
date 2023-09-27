@@ -63,7 +63,7 @@ class PASCalResults:
     principal_components: np.ndarray
     """The eigenvalues of the strain."""
 
-    indicatrix: Tuple
+    indicatrix: Tuple[Any, Any, Any, Any, Any]
     """The indicatrix data used to construct the surface plot."""
 
     norm_crax: np.ndarray
@@ -98,7 +98,7 @@ class PASCalResults:
     warning: List[str]
     """Any warnings generated during the fit."""
 
-    named_coefficients: Optional[Dict[str, Any]] = field(default=None)
+    named_coefficients: Dict[str, Any] = field(default={})
     """Any additional named coefficients to render in the table."""
 
     def plot_strain(
@@ -144,6 +144,10 @@ class PASCalResults:
     def plot_compressibility(
         self, return_json: bool = False
     ) -> Union[str, plotly.graph_objs.Figure]:
+        assert self.compressibility, "Cannot plot before compresibility calculation."
+        assert (
+            self.compressibility_errors
+        ), "Cannot plot before compresibility calculation."
         return plot_compressibility(
             self.x,
             self.compressibility,
@@ -371,16 +375,16 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
         orthonormed_cells, principal_axes, median_x
     )
 
-    strain_fits = {}
-    volume_fits = {}
+    strain_fits: dict = {}
+    volume_fits: dict = {}
 
     strain_fits["linear"] = fit_linear_wls(diagonal_strain, x, x_errors)
     volume_fits["linear"] = fit_linear_wls(cell_volumes, x, x_errors)[0]
 
     if options.data_type == PASCalDataType.TEMPERATURE:
-        principal_components = [
-            strain_fits["linear"][i].params[1] * K_to_MK for i in range(3)
-        ]
+        principal_components = np.array(
+            [strain_fits["linear"][i].params[1] * K_to_MK for i in range(3)]
+        )
 
     elif options.data_type == PASCalDataType.PRESSURE:
         # do empirical fits
@@ -406,7 +410,9 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
                 )
                 * GPa_to_TPa
             )
-        principal_components = [compressibility[i][median_x] for i in range(3)]
+        principal_components = np.array(
+            [compressibility[i][median_x] for i in range(3)]
+        )
 
         bm_popts, bm_pcovs = fit_birch_murnaghan_volume_pressure(
             cell_volumes,
@@ -447,7 +453,7 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
             mAhg_to_kAhg * np.polynomial.chebyshev.chebval(x, cheby_deriv_coeffs[i])
             for i in range(3)
         ]
-        principal_components = [deriv[i][median_x] for i in range(3)]
+        principal_components = np.array([deriv[i][median_x] for i in range(3)])
 
     norm_crax = PASCal.utils.normalise_crys_axes(
         crys_prin_ax[median_x, :, :], principal_components

@@ -157,7 +157,7 @@ def plot_volume(
     x: Union[Pressure, Temperature, Charge],
     x_errors: Union[Pressure, Temperature, Charge],
     cell_volumes: Volume,
-    fit_result: Union[Dict[str, Any], List[Any]],
+    fit_result: Dict[Any, Any],
     data_type: Union[PASCalDataType, str],
     show_errors: bool = False,
     return_json: bool = False,
