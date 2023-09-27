@@ -98,7 +98,7 @@ class PASCalResults:
     warning: List[str]
     """Any warnings generated during the fit."""
 
-    named_coefficients: Dict[str, Any] = field(default={})
+    named_coefficients: Dict[str, Any] = field(default_factory=dict)
     """Any additional named coefficients to render in the table."""
 
     def plot_strain(
@@ -144,9 +144,11 @@ class PASCalResults:
     def plot_compressibility(
         self, return_json: bool = False
     ) -> Union[str, plotly.graph_objs.Figure]:
-        assert self.compressibility, "Cannot plot before compresibility calculation."
         assert (
-            self.compressibility_errors
+            self.compressibility is not None
+        ), "Cannot plot before compresibility calculation."
+        assert (
+            self.compressibility_errors is not None
         ), "Cannot plot before compresibility calculation."
         return plot_compressibility(
             self.x,
