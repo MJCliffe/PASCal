@@ -4,6 +4,7 @@ This project welcomes contributions and suggestions.
 
  - [Code of Conduct](#coc)
  - [Issues and Bugs](#issue)
+ - [Development Installation](#dev)
  - [Feature Requests](#feature)
  - [Submission Guidelines](#submit)
 
@@ -12,6 +13,19 @@ Help us keep this project open and inclusive. Please read and follow our [Code o
 
 ## <a name="issue"></a> Found an Issue?
 If you find a bug in the source code or a mistake in the documentation, you can help us by [submitting an issue](#submit-issue) to the GitHub Repository. Even better, you can [submit a Pull Request](#submit-pr) with a fix.
+
+### <a name="dev"></a> Development Installation
+
+This package uses [Poetry](https://python-poetry.org/) to manage dependencies.
+After following Poetry's own installation instructions, and with an appropriate
+Python version set up, you can install PASCal with all required development
+dependencies using:
+
+```shell
+git clone git@github.com:MJCliffe/PASCal
+cd PASCal
+poetry install --all-extras
+```
 
 ## <a name="feature"></a> Want a Feature?
 You can *request* a new feature by [submitting an issue](#submit-issue) to the GitHub Repository. If you would like to *implement* a new feature, please submit an issue with a proposal for your work first, to be sure that we can use it.
@@ -36,6 +50,7 @@ features, by not reporting duplicate issues.  Providing the following informatio
 * **Suggest a Fix** - if you can't fix the bug yourself, perhaps you can point to what might be causing the problem (line of code or commit)
 
 You can file new issues by providing the above information at the corresponding repository's issues link: https://github.com/MJCliffe/PASCal/issues/new].
+
 
 ### <a name="submit-pr"></a> Submitting a Pull Request (PR)
 Before you submit your Pull Request (PR) consider the following guidelines:
