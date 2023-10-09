@@ -1,5 +1,13 @@
-<div align="center" style="padding-bottom: 1em;">
+<div align="center" style="padding-bottom: 3em;">
 <img width="300px" align="center" src="./src/PASCal/static/images/PASCal_logo_v1.png">
+</div>
+
+<div align="center">
+
+![PASCal](https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk)
+[![JOSS](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261)
+![Documentation](https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk)
+
 </div>
 
 Principal Axis Strain Calculator (PASCal) is a web tool and open source software package designed to help scientists analyse non-ambient lattice parameter data.
