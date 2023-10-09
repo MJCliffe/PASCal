@@ -25,8 +25,8 @@ repository = "https://github.com/MJCliffe/PASCal"
 packages = [{ include = "PASCal", from = "src" }]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-Flask = "*"
+python = "^3.9,<3.13"
+Flask = "^2.3"
 Jinja2 = "*"
 numpy = "*"
 pandas = "*"
