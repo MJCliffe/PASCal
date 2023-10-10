@@ -4,9 +4,9 @@
 
 <div align="center">
 
-[![PASCal](https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk)](https://www.pascalapp.co.uk)
-[![JOSS](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261)
-[![Documentation](https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk)](https://docs.pascalapp.co.uk)
+<a href="https://www.pascalapp.co.uk"><img alt="PASCal" src="https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk"></a>
+<a href="https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261"><img alt="JOSS DOI" src="https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg"></a>
+<a href="https://docs.pascalapp.co.uk"><img alt="Documentation" src="https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk"></a>
 
 </div>
 
