@@ -54,6 +54,10 @@ Linear fits are carried out on volumetric data, with additional fitting carried 
 
 The output page consists of a number of tables of physically meaningful coefficients and interactive graphics [@plotlytechnologiesincCollaborativeDataScience2015] showing the stimuli dependence of the principal strains, their derivatives (for pressure and electrochemical data), and an indicatrix represention of the expansivity/compressibility.
 
+# Comparison with other software
+
+There are a number of other software packages that can calculate principal strains and fit equations of state. [EOSfit](http://www.rossangel.com/) is a suite of programs designed to calculate thermal expansion and equations of state as a function of pressure and recent versions include principal strain calculation also. Standalone calculation of strain is available in the no-longer maintained WinStrain. EOSfit is an offline, closed source package that has a GUI and command line interface. [STRAIN](https://www.cryst.ehu.es/cryst/strain.html) is a closed-source online tool included on the Bilbao Crystallographic Server, and can calculate strain calculations for a single pair of lattice parameters. [ELATE](https://progs.coudert.name/elate) is not designed for calculation of strains, but is a useful open-source tool for analysing full elastic constant tensors.[@ELATE2016]
+
 # Acknowledgements
 
 M.L. and M.J.C. acknowledge support from the Hobday bequest to the School of Chemistry, University of Nottingham and the University of Nottingham Propulsion Futures Beacon. M.L.E. thanks the BEWARE scheme of the Wallonia-Brussels Federation for funding under the European Commission's Marie Curie-Skłodowska Action (COFUND 847587). All authors also thank Ross Shonfield for help deploying the app and Madeleine Geers, Iain Oswald and Emily Meekel for their help testing the algorithms.
