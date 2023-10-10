@@ -3,15 +3,16 @@
 </div>
 
 <div align="center">
-
-[![PASCal](https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk)](https://www.pascalapp.co.uk)
-[![JOSS](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261)
-[![Documentation](https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk)](https://docs.pascalapp.co.uk)
-
 </div>
 
+[![PASCal](https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk)](https://www.pascalapp.co.uk)
+
+[![JOSS](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261)
+
+[![Documentation](https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk)](https://docs.pascalapp.co.uk)
+
 Principal Axis Strain Calculator (PASCal) is a web tool and open source software package designed to help scientists analyse non-ambient lattice parameter data.
-It is written entirely in Python, using plotly to visualise the data, and is also available without installation as a web tool, available at [pascalapp.co.uk](https://pascalapp.co.uk).
+It is written entirely in Python, using plotly to visualise the data, and is also available without installation as a web tool, available at [pascalapp.co.uk](https://www.pascalapp.co.uk).
 The code is available at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub, and the documentation at [docs.pascalapp.co.uk](https://docs.pascalapp.co.uk).
 Installation instructions can be found [below](#offline-installation), and example Jupyter notebooks showcasing the functionality can be found in `./examples` folder on GitHub, or in the online documentation.
 
@@ -113,7 +114,7 @@ If you find any bugs in the code, errors in the documentation or have any featur
 There are a wide range of other useful programs available:
 
 - [WINstrain and EOSfit](http://www.rossangel.com/). WINStrain provides a large number of different options for
-calculating strains from lattice parameters, but is no longer supported. EOSfit is a powerful tool for  fitting equations of state (principally pressure).
+calculating strains from lattice parameters, but is no longer supported. EOSfit is a powerful tool for fitting equations of state (principally pressure) and recent versions include strain calculation also.
 - [STRAIN](https://www.cryst.ehu.es/cryst/strain.html). The Bilbao Crystallographic Server can calculate strain calculations for a single pair of lattice parameters.
 - [ELATE](https://progs.coudert.name/elate). A tool for analysing full elastic constant tensors.
 
