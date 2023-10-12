@@ -207,6 +207,33 @@ def test_q_sample_data(
     ), "Volumes table failed"
 
 
+def test_p_no_pc_sample_data(
+    client,
+    sample_p,
+    parser,
+):
+    post_parameters = {
+        "DataType": "Pressure",
+        "EulerianStrain": "True",
+        "FiniteStrain": "True",
+        "DegPolyCap": "",
+        "DegPolyVol": "",
+        "UsePc": "False",
+        "PcVal": "",
+        "data": sample_p,
+    }
+
+    response = client.post("/output", data=post_parameters)
+    assert response.status_code == 200
+
+    html_response = [d for d in response.response]
+    assert len(html_response) == 1
+
+    soup = parser(html_response[0])
+    tables = soup.find_all("table")
+    assert len(tables) == 7
+
+
 def test_parse_options():
     from PASCal.options import Options, PASCalDataType
 
@@ -223,6 +250,24 @@ def test_parse_options():
     assert options.data_type == PASCalDataType.TEMPERATURE
     assert options.use_pc is True
     assert options.pc_val == 0.19
+    assert options.eulerian_strain
+    assert options.deg_poly_strain == 12
+    assert options.deg_poly_vol == 10
+    assert not options.finite_strain
+
+    form_example = {
+        "DataType": "Temperature",
+        "UsePc": "False",
+        "PcVal": "",
+        "EulerianStrain": "True",
+        "DegPolyVol": "10",
+        "DegPolyCap": "12",
+        "FiniteStrain": "False",
+    }
+    options = Options.from_form(form_example)
+    assert options.data_type == PASCalDataType.TEMPERATURE
+    assert options.use_pc is False
+    assert options.pc_val is None
     assert options.eulerian_strain
     assert options.deg_poly_strain == 12
     assert options.deg_poly_vol == 10
