@@ -19,9 +19,9 @@ PASCal as designed might not be the most appropriate method for full analysis of
 
 ## How to cite
 
-A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)).
+If you use PASCal v2+ in a publication, please cite the latest published description of the software: [Lertkiattrakul *et al.*, Journal of Open Source Software (2023)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261).
 
-If you use PASCal v2+ in a publication, please cite the latest published description of the software: [Lertkiattraku *et al.*, Journal of Open Source Software (2023)](https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261).
+A paper summarising the original motivation and theory behind PASCal is published at [J. Appl. Cryst. (2012). 45, 1321-1329](https://doi.org/10.1107/S0021889812043026) ([arXiv](http://arxiv.org/pdf/1204.3007.pdf)).
 
 # Quick start
 
