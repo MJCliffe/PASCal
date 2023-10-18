@@ -265,7 +265,7 @@ class PASCalResults:
                 [d[2] if len(d) > 2 else "n/a" for d in sigmas], dtype=object
             )
             self.named_coefficients["PcCoef"] = np.array(
-                [0.0, 0.0, self.options.pc_val]
+                [0.0, 0.0, self.options.pc_val if self.options.pc_val else 0.0]
             )
             self.named_coefficients["CalPress"] = np.zeros(
                 (len(self.volume_fits), len(self.cell_volumes))

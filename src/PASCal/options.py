@@ -72,8 +72,13 @@ class Options:
 
         if options.get("data_type"):
             options["data_type"] = PASCalDataType[options["data_type"].upper()]
-        if options.get("pc_val"):
-            options["pc_val"] = float(options["pc_val"])
+        if options.get("pc_val") is not None:
+            if not options.get("pc_val"):
+                options["pc_val"] = None
+            else:
+                options["pc_val"] = float(options["pc_val"])
+        if options.get("pc_val") is None:
+            options["use_pc"] = False
         if options.get("deg_poly_strain"):
             options["deg_poly_strain"] = int(options["deg_poly_strain"])
         if options.get("deg_poly_vol"):
