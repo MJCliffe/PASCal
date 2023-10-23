@@ -1,5 +1,5 @@
 <div align="center" style="padding-bottom: 3em;">
-<img width="300px" align="center" src="./src/PASCal/static/images/PASCal_logo_v1.png">
+<img width="300px" align="center" src="./src/PASCal/static/images/PASCal_logo_v3.png">
 </div>
 
 <div align="center">
