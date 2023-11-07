@@ -131,7 +131,7 @@ def fit_empirical_strain_pressure(
             p0=init_params,
             bounds=bounds,
             sigma=pressure_errors,
-            maxfev=5000,
+            maxfev=100000,
         )
 
         popts.append(popt)
