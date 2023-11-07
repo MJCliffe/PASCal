@@ -26,6 +26,11 @@ def sample_p():
 
 
 @fixture
+def sample_p_tricky():
+    return load_sample_inputs("sample_p_tricky/input.tsv")
+
+
+@fixture
 def sample_q():
     return load_sample_inputs("sample_q/input.tsv")
 

@@ -234,6 +234,33 @@ def test_p_no_pc_sample_data(
     assert len(tables) == 7
 
 
+def test_p_tricky_sample_data(
+    client,
+    sample_p_tricky,
+    parser,
+):
+    post_parameters = {
+        "DataType": "Pressure",
+        "EulerianStrain": "True",
+        "FiniteStrain": "True",
+        "DegPolyCap": "",
+        "DegPolyVol": "",
+        "UsePc": "False",
+        "PcVal": "",
+        "data": sample_p_tricky,
+    }
+
+    response = client.post("/output", data=post_parameters)
+    assert response.status_code == 200
+
+    html_response = [d for d in response.response]
+    assert len(html_response) == 1
+
+    soup = parser(html_response[0])
+    tables = soup.find_all("table")
+    assert len(tables) == 7
+
+
 def test_parse_options():
     from PASCal.options import Options, PASCalDataType
 
