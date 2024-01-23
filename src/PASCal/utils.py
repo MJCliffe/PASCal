@@ -207,6 +207,30 @@ def birch_murnaghan_2nd(V: np.ndarray, V_0: float, B: float) -> np.ndarray:
     return (3 / 2) * B * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)
 
 
+def birch_murnaghan_2nd_jac(V: np.ndarray, V_0: float, B: float) -> np.ndarray:
+    """The second-order Birch-Murnaghan Jacobian corresponding the equation of state:
+
+    $$
+    p(V) = \\left(\\frac{3 B}{2}\\right) [η⁷ - η⁵]
+    $$
+
+    Parameters:
+        V: unit-cell volume at a pressure point in Å³.
+        V_0: the zero pressure unit-cell volume in Å³.
+        B: Bulk modulus in GPa.
+
+    Returns:
+        Jacobian (partial first derivative w.r.t each parameter for each V).
+    """
+
+    jac = np.zeros((V.shape[0], 2))
+    jac[:, 0] = (B / V_0 / 2) * (
+        7 * (eta(V, V_0) ** 7) - 5 * (eta(V, V_0) ** 5)
+    )  # derivative w.r.t V_0
+    jac[:, 1] = 3 / 2 * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)  # derivative w.r.t. B
+    return jac
+
+
 def birch_murnaghan_3rd(
     V: np.ndarray, V_0: float, B_0: float, Bprime: float
 ) -> np.ndarray:
@@ -233,6 +257,53 @@ def birch_murnaghan_3rd(
         * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)
         * (1 + 3 / 4 * (Bprime - 4) * (eta(V, V_0) ** 2 - 1))
     )
+
+
+def birch_murnaghan_3rd_jac(
+    V: np.ndarray, V_0: float, B_0: float, Bprime: float
+) -> np.ndarray:
+    """The third-order Birch-Murnaghan Jacobian corresponding to the equation of state:
+        $$
+    p(V) = \\left(\\frac{3 B_0}{2}\\right) [η⁷ - η⁵] * \\left[1 + \\left(\\frac{3(B' - 4)}{4}\\right)[η² - 1]\\right]
+    $$
+
+    Parameters:
+        V: unit-cell volume at a pressure point in Å³.
+        V_0: the zero pressure unit-cell volume in Å³.
+        B_0: Bulk modulus in GPa.
+        Bprime: pressure derivative of the bulk modulus (GPa/Å³).
+
+    Returns:
+        The third-order p(V) Jacobian (partial derivatives w.r.t each parameter) at each measured pressure point.
+
+    """
+    jac = np.zeros((V.shape[0], 3))
+    jac[:, 0] = (
+        B_0
+        * eta(V, V_0) ** 5
+        / 8
+        / V_0
+        * (
+            3 * Bprime * (5 - 14 * eta(V, V_0) ** 2 + 9 * eta(V, V_0) ** 4)
+            - 4 * (20 - 49 * eta(V, V_0) ** 2 + 27 * eta(V, V_0) ** 4)
+        )
+    )
+
+    jac[:, 1] = (
+        3
+        / 2
+        * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)
+        * (1 + 3 / 4 * (Bprime - 4) * (eta(V, V_0) ** 2 - 1))
+    )  # derviative w.r.t B_0
+    jac[:, 2] = (
+        3
+        / 2
+        * B_0
+        * (eta(V, V_0) ** 7 - eta(V, V_0) ** 5)
+        * (3 / 4 * (eta(V, V_0) ** 2 - 1))
+    )  # derivative w.r.t. BPrime
+
+    return jac
 
 
 def birch_murnaghan_3rd_pc(

@@ -106,8 +106,8 @@ def fit_empirical_strain_pressure(
     """
 
     bounds = (
-        [-np.inf, -np.inf, -np.inf, -np.inf],
-        [np.inf, np.inf, np.min(pressure), np.inf],
+        [-1e3, -1e3, -1e3, 0],
+        [1e3, 1e3, np.min(pressure), 1e3],
     )
 
     popts: List[np.ndarray] = []
@@ -123,7 +123,6 @@ def fit_empirical_strain_pressure(
                 0.5,
             ]
         )
-
         popt, pcov = curve_fit(
             empirical_function,
             pressure,
@@ -160,7 +159,9 @@ def fit_birch_murnaghan_volume_pressure(
     """
     from PASCal.utils import (
         birch_murnaghan_2nd,
+        birch_murnaghan_2nd_jac,
         birch_murnaghan_3rd,
+        birch_murnaghan_3rd_jac,
         birch_murnaghan_3rd_pc,
     )
 
@@ -186,6 +187,7 @@ def fit_birch_murnaghan_volume_pressure(
         p0=init_params_2nd,
         sigma=pressure_errors,
         maxfev=5000,
+        jac=birch_murnaghan_2nd_jac,
     )
 
     init_params_3rd: np.ndarray = np.array(
@@ -199,6 +201,7 @@ def fit_birch_murnaghan_volume_pressure(
         p0=init_params_3rd,
         sigma=pressure_errors,
         maxfev=5000,
+        jac=birch_murnaghan_3rd_jac,
     )
 
     if critical_pressure is not None:
