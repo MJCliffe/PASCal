@@ -105,7 +105,7 @@ def plot_strain(
                 x=x,
                 y=diagonal_strain[:, i] * PERCENT,
                 error_x=dict(type="data", array=x_errors, visible=show_errors),
-                name=f"ε<sub>{i}</sub>",
+                name=f"ε<sub>{i+1}</sub>",
                 mode="markers",
                 marker_symbol="circle-open",
                 marker=dict(color=PLOT_PALETTE[i]),
@@ -116,7 +116,7 @@ def plot_strain(
             go.Scatter(
                 x=xs,
                 y=ys[i] * PERCENT,
-                name=f"ε<sub>{i},calc</sub>",
+                name=f"ε<sub>{i+1},calc</sub>",
                 mode="lines",
                 line=dict(color=PLOT_PALETTE[i]),
             )
@@ -300,7 +300,7 @@ def plot_compressibility(
         raise RuntimeError("compressibility plot only possible for pressure data")
 
     for i in range(3):
-        k_label = f"K<sub>{i}</sub>"
+        k_label = f"K<sub>{i+1}</sub>"
         figure.add_trace(
             go.Scatter(
                 name=k_label,
@@ -522,7 +522,7 @@ def plot_residual(
             go.Scatter(
                 x=degrees,
                 y=residuals,
-                name=f"ε'<sub>{i}</sub>",
+                name=f"ε'<sub>{i+1}</sub>",
                 mode="lines+markers",
                 line=dict(color=PLOT_PALETTE[i]),
                 marker=dict(color=PLOT_PALETTE[i]),
@@ -579,6 +579,7 @@ def plot_indicatrix(
     arrow_len = 1.6
     arrow_head = 0.2
     arrows = norm_crax * arrow_len
+    n_contour = 4
 
     figure = go.Figure()
     for i in range(3):
@@ -615,16 +616,43 @@ def plot_indicatrix(
             x=X,
             y=Y,
             z=Z,
+            customdata=R.T,  # this is a bug in plotly which hasn't been fixed!
+            # customdata = np.stack( (df['ProductionOrder'], df['FinishDate']), axis=-1)
+            # https://github.com/plotly/plotly.js/issues/5003
+            # make it U V W
             surfacecolor=R,
             cmax=maxIn,
             cmid=0,
             cmin=-maxIn,
             colorscale="rdbu_r",
-            opacity=1.0,
-            hovertemplate="alpha: %{surfacecolor:.1f}"
+            opacity=0.5,
+            contours={
+                "x": {
+                    "show": True,
+                    "start": -maxIn,
+                    "end": maxIn,
+                    "size": maxIn / n_contour,
+                    "color": "black",
+                },
+                "y": {
+                    "show": True,
+                    "start": -maxIn,
+                    "end": maxIn,
+                    "size": maxIn / n_contour,
+                    "color": "black",
+                },
+                "z": {
+                    "show": True,
+                    "start": -maxIn,
+                    "end": maxIn,
+                    "size": maxIn / n_contour,
+                    "color": "black",
+                },
+            },
+            hovertemplate="α: %{customdata:.1f}"
             + "<br>x: %{x:.1f}"
             + "<br>y: %{y:.1f}"
-            + "<br>z: %{z:.1f}<extra></extra>",
+            + "<br>z: %{z:.1f}<extra></extra>",  ### this can be fixed
             colorbar=dict(
                 title=cbar_label,
                 titleside="top",
@@ -635,10 +663,11 @@ def plot_indicatrix(
     )
 
     axis_scale = 2
-    crax_label_pos = 1.1
+    crax_label_pos = 1.15
+
     annotations = ["a", "b", "c"]
     axis_defaults = {
-        "gridcolor": "grey",
+        # "gridcolor": "grey",
         "showbackground": False,
         "range": [-maxIn * axis_scale, maxIn * axis_scale],
     }
