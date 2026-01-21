@@ -125,9 +125,11 @@ def _render_results(results: PASCalResults) -> str:
                 results.median_principal_axis_crys, 4
             ),
             PrinAxCryst=PASCal.utils.round_array(results.principal_axis_crys, 4),
-            BMOrder=["2nd", "3rd"]
-            if not (results.options.use_pc)
-            else ["2nd", "3rd", "3rd with P<sub>c</sub>"],
+            BMOrder=(
+                ["2nd", "3rd"]
+                if not (results.options.use_pc)
+                else ["2nd", "3rd", "3rd with P<sub>c</sub>"]
+            ),
             TPxError=results.x_errors,
             u=results.median_x,
             UsePc=results.options.use_pc,

@@ -57,11 +57,9 @@ follow_imports = "skip"
 [tool.ruff]
 select = ["E", "F", "I", "W", "Q"]
 ignore = ["E501", "E402"]
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
+# fixable = ["A", "B", "C", "D", "E", "F", "I"]
 unfixable = []
-extend-exclude = [
-    "providers",
-]
+extend-exclude = []
 target-version = "py310"
 per-file-ignores = {}
 # Allow unused variables when underscore-prefixed.

@@ -478,12 +478,14 @@ def fit(x, x_errors, unit_cells, options: Union[Options, dict]) -> PASCalResults
         median_principal_axis_crys=median_principal_axis_crys,
         principal_axis_crys=principal_axis_crys,
         warning=warning,
-        compressibility=compressibility
-        if options.data_type == PASCalDataType.PRESSURE
-        else None,
-        compressibility_errors=compressibility_errors
-        if options.data_type == PASCalDataType.PRESSURE
-        else None,
+        compressibility=(
+            compressibility if options.data_type == PASCalDataType.PRESSURE else None
+        ),
+        compressibility_errors=(
+            compressibility_errors
+            if options.data_type == PASCalDataType.PRESSURE
+            else None
+        ),
     )
     results._set_named_coeffs()
     return results

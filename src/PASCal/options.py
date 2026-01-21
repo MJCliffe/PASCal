@@ -1,6 +1,7 @@
 """This module defines the options used by the PASCal library/app
 when fitting strain and volume data.
 """
+
 from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any, Dict, List, Optional
