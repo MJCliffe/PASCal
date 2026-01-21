@@ -43,10 +43,12 @@ mkdocs-awesome-pages-plugin = { version = "*", optional = true }
 mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
 pre-commit = { version = "*", optional = true }
+gunicorn = { version = "*", optional = true }
 
 [tool.poetry.extras]
 test = ["pytest", "beautifulsoup4", "pre-commit", "pre-commit"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
+serve = ["gunicorn"]
 
 [tool.mypy]
 ignore_missing_imports = true
