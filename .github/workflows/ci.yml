@@ -24,13 +24,13 @@ jobs:
         python-version: ['3.9', '3.10', '3.11']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{matrix.python-version }}
         cache: 'pip'
@@ -71,7 +71,7 @@ jobs:
 
     - name: Upload artifact for deployment
       if: matrix.python-version == 3.9
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v6
       with:
         name: PASCal - test
         path: |
@@ -90,7 +90,7 @@ jobs:
 
     - name: Upload docs artifact
       if: matrix.python-version == 3.9
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v4
       with:
         path: site
 
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build image
         uses: docker/build-push-action@v6
@@ -119,7 +119,7 @@ jobs:
 
     steps:
       - name: Download artifact from build job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v7
         with:
           name: PASCal - test
           path: .
@@ -145,4 +145,4 @@ jobs:
 
     steps:
     - name: Deploy docs
-      uses: actions/deploy-pages@v2
+      uses: actions/deploy-pages@v4
