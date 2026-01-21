@@ -50,6 +50,9 @@ test = ["pytest", "beautifulsoup4", "pre-commit", "pre-commit"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
 serve = ["gunicorn"]
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
