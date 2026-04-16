@@ -219,7 +219,7 @@ def fit_birch_murnaghan_volume_pressure(
 
 
 def get_best_chebyshev_strain_fit(
-    strain_fits: Dict[int, Tuple[np.ndarray, np.ndarray]]
+    strain_fits: Dict[int, Tuple[np.ndarray, np.ndarray]],
 ) -> Tuple[List[int], List[np.ndarray]]:
     """Loop through the Chebyshev strain fits and return the indices of those with
     the lowest residuals for each strain direction.
@@ -247,7 +247,7 @@ def get_best_chebyshev_strain_fit(
 
 
 def get_best_chebyshev_volume_fit(
-    volume_fits: Dict[int, Tuple[np.ndarray, float]]
+    volume_fits: Dict[int, Tuple[np.ndarray, float]],
 ) -> Tuple[int, np.ndarray]:
     """Loop through the Chebyshev strain fits and return the indices of those with
     the lowest residuals for each strain direction.

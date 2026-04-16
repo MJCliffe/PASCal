@@ -43,10 +43,15 @@ mkdocs-awesome-pages-plugin = { version = "*", optional = true }
 mkdocs-jupyter = { version = "*", optional = true }
 notebook = { version = "*", optional = true }
 pre-commit = { version = "*", optional = true }
+gunicorn = { version = "*", optional = true }
 
 [tool.poetry.extras]
 test = ["pytest", "beautifulsoup4", "pre-commit", "pre-commit"]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocs-awesome-pages-plugin", "notebook", "mkdocs-jupyter"]
+serve = ["gunicorn"]
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -55,11 +60,9 @@ follow_imports = "skip"
 [tool.ruff]
 select = ["E", "F", "I", "W", "Q"]
 ignore = ["E501", "E402"]
-fixable = ["A", "B", "C", "D", "E", "F", "I"]
+# fixable = ["A", "B", "C", "D", "E", "F", "I"]
 unfixable = []
-extend-exclude = [
-    "providers",
-]
+extend-exclude = []
 target-version = "py310"
 per-file-ignores = {}
 # Allow unused variables when underscore-prefixed.
