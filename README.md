@@ -4,14 +4,14 @@
 
 <div align="center">
 
-<a href="https://www.pascalapp.co.uk"><img alt="PASCal" src="https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascalapp.co.uk"></a>
+<a href="https://www.pascal.fihm.co.uk"><img alt="PASCal" src="https://img.shields.io/badge/try-PASCal-navy?style=flat&color=navy&cacheSeconds=3600&link=https%3A%2F%2Fpascal.fihm.co.uk"></a>
 <a href="https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261"><img alt="JOSS DOI" src="https://joss.theoj.org/papers/3bfe66743c9a86f34d3c1b2f17906261/status.svg"></a>
 <a href="https://docs.pascalapp.co.uk"><img alt="Documentation" src="https://img.shields.io/badge/docs-online-black?style=flat&logoColor=white&logo=bookstack&color=olive&cacheSeconds=3600&link=https%3A%2F%2Fdocs.pascalapp.co.uk"></a>
 
 </div>
 
 Principal Axis Strain Calculator (PASCal) is a web tool and open source software package designed to help scientists analyse non-ambient lattice parameter data.
-It is written entirely in Python, using plotly to visualise the data, and is also available without installation as a web tool, available at [pascalapp.co.uk](https://www.pascalapp.co.uk).
+It is written entirely in Python, using plotly to visualise the data, and is also available without installation as a web tool, available at [pascal.fihm.co.uk](https://www.pascal.fihm.co.uk).
 The code is available at [MJCliffe/PASCal](https://github.com/MJCliffe/PASCal) on GitHub, and the documentation at [docs.pascalapp.co.uk](https://docs.pascalapp.co.uk).
 Installation instructions can be found [below](#offline-installation), and example Jupyter notebooks showcasing the functionality can be found in `./examples` folder on GitHub, or in the online documentation.
 
